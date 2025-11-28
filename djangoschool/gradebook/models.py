@@ -6,7 +6,13 @@ from admission.models import AcademicYear, AbstractClass, Student, SchoolLevel, 
 # from account.models import User
 
 # Create your models here.
-
+GRADE_CHOICES = [
+    ("A", "A"),
+    ("B", "B"),
+    ("C", "C"),
+    ("D", "D"),
+    ("E", "E"),
+]
 class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
@@ -79,4 +85,13 @@ class AssignmentDetail(models.Model):
     is_active = models.BooleanField(default=True)
     na_date = models.DateField(null=True, blank=True)
     na_reason = models.CharField(max_length=100, blank=True, null=True)
+
+class ReportcardGrade(models.Model):
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    period = models.ForeignKey(LearningPeriod, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    level = models.ForeignKey(SchoolLevel, default=1, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    final_score = models.IntegerField(default=0)
+    final_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
 

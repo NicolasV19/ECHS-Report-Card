@@ -1,6 +1,6 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail
+from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade
 
 def new_subject(sender, instance, created, **kwargs):
     if created:
@@ -71,9 +71,23 @@ def new_grade_entry(sender, instance, created, **kwargs):
         except GradeEntry.DoesNotExist:
             print (f"GradeEntry for {idnya} does not exist")
 
+def set_final_grade(sender, instance, **kwargs):
+    if not instance.final_grade:
+        if (instance.final_score > 89) and (instance.final_score < 101):
+            instance.final_grade = "A"
+        elif (instance.final_score > 85) and (instance.final_score < 90):
+            instance.final_grade = "B"
+        elif (instance.final_score > 79) and (instance.final_score < 86):
+            instance.final_grade = "C"
+        else:
+            instance.final_grade = "D"
+
 #untuk tabel subject saat hendak dan setelah disimpan
 pre_save.connect(make_shortname, Subject)
 post_save.connect(new_subject, Subject)
 
 #untuk tabel GradeEntry setelah guru mengisi form isi nilai
 post_save.connect(new_grade_entry, GradeEntry)
+
+#konversi nilai raport ke huruf
+pre_save.connect(set_final_grade, ReportcardGrade)
