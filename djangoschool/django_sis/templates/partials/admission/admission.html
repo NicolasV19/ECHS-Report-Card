@@ -1,0 +1,90 @@
+<h3>Signup Form</h3>
+  <style>
+  .error-message {
+    color:red;
+  }
+  .error input {
+      box-shadow: 0 0 3px #CC0000;
+   }
+  .valid input {
+      box-shadow: 0 0 3px #36cc00;
+   }
+   </style>
+<form hx-post="/contact">
+<div hx-target="this" hx-swap="outerHTML" class="error">
+  <label>Email Address</label>
+  <input type="number" min="1" max="100">
+  <img id="ind" src="/img/bars.svg" class="htmx-indicator"/>
+  <div class='error-message'>That email is already taken.  Please enter another email.</div>
+</div>
+  <div class="form-group">
+    <label>First Name</label>
+    <input type="text" class="form-control" name="firstName">
+  </div>
+  <div class="form-group">
+    <label>Last Name</label>
+    <input type="text" class="form-control" name="lastName">
+  </div>
+  <button class="btn primary">Submit</button>
+</form>
+{% comment %} <script>
+
+
+    //=========================================================================
+    // Fake Server Side Code
+    //=========================================================================
+
+    // routes
+    init("/demo", function(request, params){
+      return demoTemplate();
+    });
+
+    onPost("/contact", function(request, params){
+      return formTemplate();
+    });
+    
+    onPost(/\/contact\/email.*/, function(request, params){
+        var email = params['email'];
+        if(!/\S+@\S+\.\S+/.test(email)) {
+          return emailInputTemplate(email, "Please enter a valid email address");
+        } else if(email != "test@test.com") {
+          return emailInputTemplate(email, "That email is already taken.  Please enter another email.");
+        } else {
+          return emailInputTemplate(email);
+        }
+     });
+
+    // templates
+function demoTemplate() {
+
+    return `<h3>Signup Form</h3><p>Enter an email into the input below and on tab out it will be validated.  Only "test@test.com" will pass.</p> ` + formTemplate();
+}
+
+function formTemplate() {
+    return `<form hx-post="/contact">
+    <div hx-target="this" hx-swap="outerHTML">
+    <label for="email">Email Address</label>
+    <input name="email" id="email" hx-post="/contact/email" hx-indicator="#ind">
+    <img id="ind" src="/img/bars.svg" class="htmx-indicator"/>
+    </div>
+    <div class="form-group">
+    <label for="firstName">First Name</label>
+    <input type="text" class="form-control" name="firstName" id="firstName">
+    </div>
+    <div class="form-group">
+    <label for="lastName">Last Name</label>
+    <input type="text" class="form-control" name="lastName" id="lastName">
+    </div>
+    <button type='submit' class="btn primary" disabled>Submit</button
+    </form>`;
+    }
+
+    function emailInputTemplate(val, errorMsg) {
+        return `<div hx-target="this" hx-swap="outerHTML" class="${errorMsg ? "error" : "valid"}">
+        <label>Email Address</label>
+        <input name="email" hx-post="/contact/email" hx-indicator="#ind" value="${val}" aria-invalid="${!!errorMsg}">
+        <img id="ind" src="/img/bars.svg" class="htmx-indicator"/>
+        ${errorMsg ? (`<div class='error-message' >${errorMsg}</div>`) : ""}
+        </div>`;
+    }
+</script> {% endcomment %}
