@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="wizard-container container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Input Nilai - Langkah {{ wizard.steps.step1 }} dari {{ wizard.steps.count }}</h4>
+        </div>
+        
+        <div class="card-body">
+            {% if selected_course %}
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-book"></i> 
+                    <strong>Kelas:</strong> {{ selected_course }} 
+                </span>
+                {% if wizard.steps.current == '2' and assignment_head_data %}
+                <span class="badge bg-light text-dark border">
+                    Topik: {{ assignment_head_data.topic }} | Tgl: {{ assignment_head_data.date }}
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <form action="" method="post">
+                {% csrf_token %}
+                
+                {{ wizard.management_form }}
+                
+                {# === STEP 3 (index '2'): Tampilan TABEL untuk Input Nilai Banyak Siswa === #}
+                {% if wizard.steps.current == '2' %}
+                
+                    {{ wizard.form.management_form }}
+
+                    {% if wizard.form.forms %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30%;">Nama Siswa</th>
+                                        <th style="width: 20%;">Nilai (Score)</th>
+                                        <th style="width: 30%;">Alasan (Jika Kosong)</th>
+                                        <th style="width: 10%;">Aktif</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for form in wizard.form %}
+                                    <tr>
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+
+                                        <td>
+                                            {{ form.student_name }} 
+                                            {% if form.student.errors %}
+                                                <div class="text-danger small">{{ form.student.errors }}</div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {{ form.score }}
+                                            {% if form.score.errors %}
+                                                <div class="text-danger small">{{ form.score.errors }}</div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {{ form.na_reason }}
+                                            {% if form.na_reason.errors %}
+                                                <div class="text-danger small">{{ form.na_reason.errors }}</div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td class="text-center">
+                                            {{ form.is_active }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            Tidak ada siswa yang ditemukan di kelas ini.
+                        </div>
+                    {% endif %}
+
+                {# === STEP 1 & 2 (index '0' & '1'): Tampilan FORM Biasa === #}
+                {% else %}
+                    <div class="row">
+                        <div class="col-md-8 offset-md-2">
+                            <table class="table table-borderless">
+                                {{ wizard.form.as_table }}
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between">
+                    {% if wizard.steps.prev %}
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-secondary">
+                            &laquo; Kembali
+                        </button>
+                    {% else %}
+                        <div></div> 
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-success px-4">
+                        {% if wizard.steps.current == '2' %}
+                            <i class="bi bi-save"></i> Simpan Semua Nilai
+                        {% else %}
+                            Lanjut &raquo;
+                        {% endif %}
+                    </button>
+                </div>
+                
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Agar input score tidak terlalu lebar di dalam tabel */
+    input[name$="-score"] {
+        width: 100px; 
+        display: inline-block;
+        form-control;
+    }
+    input[name$="-student_name"] {
+        border: none;
+        background-color: transparent;
+        font-weight: bold;
+        width: 100%;
+    }
+</style>
+{% endblock %}
