@@ -1,6 +1,6 @@
 import dateutil.utils
 from django.db import models
-from datetime import datetime
+from datetime import datetime, date
 from admission.models import AcademicYear, AbstractClass, Student, SchoolLevel, Teacher, LearningPeriod
 
 # from account.models import User
@@ -58,7 +58,7 @@ class GradeEntry(models.Model):
     school_level = models.ForeignKey(SchoolLevel, default=1, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     assignment_type = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
-    assignment_date = models.DateField(default=dateutil.utils.today())
+    assignment_date = models.DateField(default=date.today())
     assignment_topic = models.CharField(max_length=100, default="to be fill later.")
     # set table to readonly by disabling all save/delete methode
 
