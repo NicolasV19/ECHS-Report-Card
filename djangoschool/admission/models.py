@@ -15,10 +15,62 @@ class AbstractPerson(models.Model):
     gender = models.CharField(max_length=1, blank=True, choices=GENDER_CHOICES)
     class Meta:
         abstract = True
-        
+
+class Religion(models.Model):
+    religion_name = models.CharField(max_length=20)
+    def __str__(self):
+        return self.religion_name
+
 class Registration(AbstractPerson):
+    CONTACT_PREFS = {"W": "Whatsapp", "P": "Phone", "E": "Email"}
+    LAST_EDU = {"S3": "PhD", "S2": "Graduate", "S1": "Undergraduate", "Dipl": "Diploma", "SHS": "SMA", "JHS": "SMP", "OTH": "Other"}
     form_no = models.CharField(max_length=20, unique=True)
-    address = models.CharField(max_length=255)
+    nisn = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    prev_school = models.CharField(max_length=50, blank=True, null=True)
+    prev_nis = models.CharField(max_length=20, blank=True, null=True)
+    birth_order = models.CharField(max_length=1, blank=True, null=True)
+    religion = models.ForeignKey(Religion, null=True, on_delete=models.CASCADE)
+    church_name = models.CharField(max_length=30, blank=True, null=True)
+    current_address = models.CharField(max_length=50, blank=True, null=True)
+    current_district = models.CharField(max_length=50, blank=True, null=True)
+    current_region = models.CharField(max_length=50, blank=True, null=True)
+    current_city = models.CharField(max_length=50, blank=True, null=True)
+    current_province = models.CharField(max_length=50, blank=True, null=True)
+    contact_whatsapp = models.CharField(max_length=20, blank=True, null=True)
+    contact_mobile = models.CharField(max_length=20, blank=True, null=True)
+    contact_email = models.CharField(max_length=20, blank=True, null=True)
+    contact_preference = models.CharField(max_length=1, blank=True, null=True, choices=CONTACT_PREFS)
+    mother_name = models.CharField(max_length=20, blank=True, null=True)
+    mother_nik = models.CharField(max_length=20, blank=True, null=True)
+    mother_religion = models.ForeignKey(Religion, null=True, on_delete=models.CASCADE, related_name="mother_religion")
+    mother_education = models.CharField(max_length=20, blank=True, choices=LAST_EDU)
+    mother_occupation = models.CharField(max_length=20, blank=True, null=True)
+    mother_address_same2applicant = models.BooleanField(default=True)
+    mother_address = models.CharField(max_length=50, blank=True, null=True)
+    mother_district = models.CharField(max_length=50, blank=True, null=True)
+    mother_region = models.CharField(max_length=50, blank=True, null=True)
+    mother_city = models.CharField(max_length=50, blank=True, null=True)
+    mother_province = models.CharField(max_length=50, blank=True, null=True)
+    mother_phone = models.CharField(max_length=20, blank=True, null=True)
+    mother_mobile = models.CharField(max_length=20, blank=True, null=True)
+    mother_whatsapp = models.CharField(max_length=20, blank=True, null=True)
+    mother_email = models.CharField(max_length=20, blank=True, null=True)
+    father_name = models.CharField(max_length=20, blank=True, null=True)
+    father_nik = models.CharField(max_length=20, blank=True, null=True)
+    father_religion = models.ForeignKey(Religion, null=True, on_delete=models.CASCADE, related_name="father_religion")
+    father_education = models.CharField(max_length=20, blank=True, choices=LAST_EDU)
+    father_occupation = models.CharField(max_length=20, blank=True, null=True)
+    father_address_same2applicant = models.BooleanField(default=True)
+    father_address = models.CharField(max_length=50, blank=True, null=True)
+    father_district = models.CharField(max_length=50, blank=True, null=True)
+    father_region = models.CharField(max_length=50, blank=True, null=True)
+    father_city = models.CharField(max_length=50, blank=True, null=True)
+    father_province = models.CharField(max_length=50, blank=True, null=True)
+    father_phone = models.CharField(max_length=20, blank=True, null=True)
+    father_mobile = models.CharField(max_length=20, blank=True, null=True)
+    father_whatsapp = models.CharField(max_length=20, blank=True, null=True)
+    father_email = models.CharField(max_length=20, blank=True, null=True)
+
     def __str__(self):
         return f"{self.form_no} ({self.first_name})" 
 
