@@ -17,9 +17,15 @@ class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
 
+    def __str__ (self):
+        return f"{self.short_name} - {self.subject_name}"
+
 class AssignmentType(models.Model):
     name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=10)
+
+    def __str__ (self):
+        return f"{self.name} ({self.short_name})"
 
 class Weighting(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
@@ -30,6 +36,9 @@ class Weighting(models.Model):
 
 class Course(AbstractClass):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+
+    def __str__ (self):
+        return f"{self.subject.subject_name} - {self.academic_year.year}"
 
 class CourseMember(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
@@ -81,7 +90,7 @@ class AssignmentHead(models.Model):
 class AssignmentDetail(models.Model):
     assignment_head = models.ForeignKey(AssignmentHead, on_delete=models.CASCADE)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    score = models.DecimalField(max_digits=2, decimal_places=2, default=0)
+    score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     is_active = models.BooleanField(default=True)
     na_date = models.DateField(null=True, blank=True)
     na_reason = models.CharField(max_length=100, blank=True, null=True)
