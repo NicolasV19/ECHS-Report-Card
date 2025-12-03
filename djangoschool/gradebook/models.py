@@ -17,15 +17,9 @@ class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
 
-    def __str__ (self):
-        return f"{self.short_name} - {self.subject_name}"
-
 class AssignmentType(models.Model):
     name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=10)
-
-    def __str__ (self):
-        return f"{self.name} ({self.short_name})"
 
 class Weighting(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
@@ -36,9 +30,6 @@ class Weighting(models.Model):
 
 class Course(AbstractClass):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
-
-    def __str__ (self):
-        return f"{self.subject.subject_name} - {self.academic_year.year}"
 
 class CourseMember(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
@@ -104,3 +95,9 @@ class ReportcardGrade(models.Model):
     final_score = models.IntegerField(default=0)
     final_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
 
+class StudentAttendance(models.Model):
+    ATTD_CHOICES = [("S", "Sick"), ("P", "Permit"), ("A", "Absent"), ("L", "Late")]
+    attendance_date = models.DateField(null=True, blank=True)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    attendance_type = models.CharField(max_length=1, choices=ATTD_CHOICES)
+    notes = models.TextField(null=True, blank=True)
