@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import modelform_factory, formset_factory
-from .models import GradeEntry, AssignmentHead, AssignmentDetail
+from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance
 
 # Form Step 1
 class GradeEntryForm(forms.ModelForm):
@@ -8,6 +8,15 @@ class GradeEntryForm(forms.ModelForm):
         model = GradeEntry
         fields = ["academic_year", "period", "teacher", "subject", 
                   "course", "assignment_type"]
+        
+# Absensi
+class AttendanceForm(forms.ModelForm):
+    class Meta:
+        model = StudentAttendance
+        fields = ["attendance_date", "student", "attendance_type", "notes"]
+        widgets = {
+            'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+        }
 
 # Form Step 2
 class AssignmentHeadForm(forms.ModelForm):
@@ -44,6 +53,9 @@ class AssignmentDetailItemForm(forms.ModelForm):
                 self.fields['student_name'].initial = str(s)
             except Student.DoesNotExist:
                 pass
+
+
+        
 
 # Membuat FormSet Factory
 AssignmentDetailFormSet = formset_factory(AssignmentDetailItemForm, extra=0)

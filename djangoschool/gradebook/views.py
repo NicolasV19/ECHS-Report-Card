@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet
-from .models import CourseMember, AssignmentHead, AssignmentDetail, GradeEntry
+from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm
+from .models import CourseMember, AssignmentHead, AssignmentDetail, GradeEntry, StudentAttendance
 
 
 def gb_index(request):
@@ -22,6 +22,31 @@ def grade_entry(request):
 
 def get_period(request):
     pass
+
+def attendance(request):
+    """Handles the form for adding a new Aktivitas."""
+    if request.method == 'POST':
+        form = AttendanceForm(request.POST)
+        
+        if form.is_valid():
+            
+            # Create the instance but don't save to DB yet
+            student_attendance = form.save(commit=False)
+            
+            # Add the logged-in user and the selected rule
+            # new_pelanggaran.user = request.user # Assumes user is logged in
+            student_attendance.save()
+            
+            # return redirect('pelanggaran_list')
+
+    # For a GET request, show the empty form
+    form = AttendanceForm()
+    # bidang_options = Demerit.objects.values_list('bidang', flat=True).distinct().order_by('bidang')
+    context = {
+        'form': form,
+        #'bidang_options': bidang_options,
+    }
+    return render(request, 'partials/gradebook/attendance.html', context)
 
 
 class GradeEntryForm(SessionWizardView):
@@ -87,7 +112,7 @@ class GradeEntryForm(SessionWizardView):
         formset_data_2 = form_list[2] # AssignmentDetailFormSet (ini formset object)
 
         # 1. Simpan GradeEntry (jika masih diperlukan sebagai log)
-        grade_entry_instance = form_list[0].save()
+        # grade_entry_instance = form_list[0].save()
 
         # 2. Buat dan Simpan AssignmentHead
         # Kita gabungkan data dari Step 0 dan Step 1
@@ -112,4 +137,7 @@ class GradeEntryForm(SessionWizardView):
         # Bulk create untuk performa lebih cepat
         AssignmentDetail.objects.bulk_create(details_to_create)
 
+        
         return render(self.request, "partials/gradebook/finished_screen.html")
+    
+
