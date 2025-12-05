@@ -1,8 +1,9 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm
+from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm
 from .models import CourseMember, AssignmentHead, AssignmentDetail, GradeEntry, StudentAttendance
+from admission.models import Class, ClassMember, Teacher, Student
 
 
 def gb_index(request):
@@ -24,27 +25,27 @@ def get_period(request):
     pass
 
 def attendance(request):
-    """Handles the form for adding a new Aktivitas."""
+    # cannot unpack non-iterable ForwardManyToOneDescriptor object
+    # current_teacher = get_object_or_404(Teacher, user=request.user)
+    # filtered_students = Teacher.objects.filter(current_teacher)
     if request.method == 'POST':
-        form = AttendanceForm(request.POST)
+        
+        form = AttendanceForm(request.POST, user=request.user)
+        # teach_form = TeacherForm(request.POST)
         
         if form.is_valid():
+            form.save()
             
-            # Create the instance but don't save to DB yet
-            student_attendance = form.save(commit=False)
-            
-            # Add the logged-in user and the selected rule
-            # new_pelanggaran.user = request.user # Assumes user is logged in
-            student_attendance.save()
-            
-            # return redirect('pelanggaran_list')
+    form = AttendanceForm(user=request.user)
+    # teach_form = TeacherForm()
 
-    # For a GET request, show the empty form
-    form = AttendanceForm()
-    # bidang_options = Demerit.objects.values_list('bidang', flat=True).distinct().order_by('bidang')
+    # if 'student' in form.fields:
+    #     form.fields['student'].queryset = filtered_students
+
+
     context = {
         'form': form,
-        #'bidang_options': bidang_options,
+        # 'classes': filtered_students
     }
     return render(request, 'partials/gradebook/attendance.html', context)
 
