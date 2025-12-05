@@ -16,10 +16,14 @@ GRADE_CHOICES = [
 class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
+    def __str__(self):
+        return self.subject_name
 
 class AssignmentType(models.Model):
     name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=10)
+    def __str__(self):
+        return self.short_name
 
 class Weighting(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
@@ -30,6 +34,8 @@ class Weighting(models.Model):
 
 class Course(AbstractClass):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    def __str__(self):
+        return self.short_name
 
 class CourseMember(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
@@ -86,14 +92,37 @@ class AssignmentDetail(models.Model):
     na_date = models.DateField(null=True, blank=True)
     na_reason = models.CharField(max_length=100, blank=True, null=True)
 
-class ReportcardGrade(models.Model):
+class Rubric(models.Model):
+    RUBRIC_CHOICES = [("Spiritual", "Spiritual Behaviour"), ("Social", "Social Behaviour")]
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    type = models.CharField(max_length=10, choices=RUBRIC_CHOICES)
+    description = models.TextField(null=True, blank=True)
+    index = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.description
+
+class RubricIndicator(models.Model):
+    rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
+    indicator_text = models.TextField(null=True, blank=True, unique=True)
+    index = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.indicator_text
+
+class StudentReportcard(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
     period = models.ForeignKey(LearningPeriod, on_delete=models.CASCADE)
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    is_mid = models.BooleanField(default=False)
     level = models.ForeignKey(SchoolLevel, default=1, on_delete=models.CASCADE)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
+
+class ReportcardGrade(models.Model):
+    reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     final_score = models.IntegerField(default=0)
     final_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
+    teacher_notes = models.TextField(null=True, blank=True)
 
 class StudentAttendance(models.Model):
     ATTD_CHOICES = [("S", "Sick"), ("P", "Permit"), ("A", "Absent"), ("L", "Late")]
@@ -101,3 +130,17 @@ class StudentAttendance(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     attendance_type = models.CharField(max_length=1, choices=ATTD_CHOICES)
     notes = models.TextField(null=True, blank=True)
+
+class ReportcardNotes(models.Model):
+    reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
+    spiritual_char_statement = models.TextField(null=True, blank=True)
+    spiritual_char_notes = models.TextField(null=True, blank=True)
+    social_statement = models.TextField(null=True, blank=True)
+    social_char_notes = models.TextField(null=True, blank=True)
+    social_notes = models.TextField(null=True, blank=True)
+    homeroom_notes = models.TextField(null=True, blank=True)
+
+class StudentRubrics(models.Model):
+    reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
+    indicator = models.ForeignKey(RubricIndicator, on_delete=models.CASCADE)
+    score = models.IntegerField(default=0)

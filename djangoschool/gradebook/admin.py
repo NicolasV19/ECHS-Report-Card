@@ -1,6 +1,7 @@
 from django.contrib import admin
 import decimal
-from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade
+from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator
+
 
 class SubjectAdmin(admin.ModelAdmin):
     list_display = ["subject_name", "short_name"]
@@ -46,6 +47,15 @@ class GradeEntryAdmin(admin.ModelAdmin):
     def delete_queryset(self, request, queryset):
         pass
 
+class RubricIndicatorAdmin(admin.TabularInline):
+    model = RubricIndicator
+
+class RubricAdmin(admin.ModelAdmin):
+    list_display = ("type", "description", "index")
+    list_filter = ["academic_year", "type" ]
+    inlines = [ RubricIndicatorAdmin ]
+
+
 # Register your models here.
 admin.site.register(Subject, SubjectAdmin)
 admin.site.register(Course, CourseAdmin)
@@ -54,3 +64,5 @@ admin.site.register(AssignmentType, AssignmentTypeAdmin)
 admin.site.register(Weighting, WeightingAdmin)
 admin.site.register(PassingGrade, PassingGradeAdmin)
 admin.site.register(GradeEntry, GradeEntryAdmin)
+admin.site.register(Rubric, RubricAdmin)
+admin.site.register(RubricIndicator)
