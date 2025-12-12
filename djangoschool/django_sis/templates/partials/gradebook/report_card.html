@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="wizard-container container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Report Card Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
+        </div>
+
+        <div class="card-body">
+            {% if selected_student %}
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-person-badge"></i> 
+                    <strong>Student:</strong> {{ selected_student }}
+                </span>
+                {% comment %} <span class="badge bg-light text-dark border">
+                    Period: {{ selected_period }}
+                </span> {% endcomment %}
+            </div>
+            {% endif %}
+
+            <form action="" method="post">
+                {% csrf_token %}
+                
+                {{ wizard.management_form }}
+                
+                {# === STEP 1 (index '1'): List of Subjects === #}
+                {% if wizard.steps.current == '1' %}
+                
+                    {{ wizard.form.management_form }}
+
+                    {% if wizard.form.forms %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 25%;">Subject</th>
+                                        <th style="width: 15%;">Score</th>
+                                        <th style="width: 15%;">Grade</th>
+                                        <th style="width: 45%;">Teacher's Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for form in wizard.form.forms %}
+                                    <tr>
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                        
+                                        <td>
+                                            {{ form.subject }}
+                                            {% comment %} {{ form.subject_name }} {% endcomment %}
+                                        </td>
+
+                                        <td>
+                                            {{ form.final_score }}
+                                            {% if form.final_score.errors %}
+                                                <div class="text-danger small">{{ form.final_score.errors }}</div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {{ form.final_grade }}
+                                        </td>
+
+                                        <td>
+                                            {{ form.teacher_notes }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            No active courses found for this student. Please check Course Member assignments.
+                        </div>
+                    {% endif %}
+
+                {# === STEP 0: Student Selection === #}
+                {% else %}
+                    <div class="row">
+                        <div class="col-md-8 offset-md-2">
+                            <table class="table table-borderless">
+                                {{ wizard.form.as_table }}
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between">
+                    {% if wizard.steps.prev %}
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-secondary">
+                            &laquo; Back
+                        </button>
+                    {% else %}
+                        <div></div> 
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-success px-4">
+                        {% if wizard.steps.current == '1' %}
+                            <i class="bi bi-save"></i> Save Report Card
+                        {% else %}
+                            Next &raquo;
+                        {% endif %}
+                    </button>
+                </div>
+                
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
