@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django import forms
-from django.forms import modelform_factory, formset_factory, modelformset_factory
-from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject
+from django.forms import modelform_factory, formset_factory, modelformset_factory, BaseFormSet
+from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject, Course
 from admission.models import Class, ClassMember, Teacher, AbstractClass, Student
 
 # Define grade choices
@@ -19,6 +19,71 @@ class GradeEntryForm(forms.ModelForm):
         model = GradeEntry
         fields = ["academic_year", "period", "teacher", "subject", 
                   "course", "assignment_type"]
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['academic_year'].widget.attrs.update({
+            'hx-get': '/gradebook/get-period-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#period-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="0-period"]'
+        })
+        self.fields['period'].widget.attrs['id'] = 'period-select-ge'
+        self.fields['teacher'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="0-subject"]'
+        })
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="0-course"]'
+        })
+        self.fields['course'].widget.attrs['id'] = 'course-select-ge'
+        self.fields['academic_year'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#period-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="1-period"]'
+            })
+        self.fields['period'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'id': 'period-select'
+            })
+        # self.fields['student'].widget.attrs.update({
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-courses/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#course-select',
+        #     'hx-swap': 'innerHTML',
+        #     'hx-include': '[name="1-course"]'
+        #     })
+        # self.fields['attendance_type'].widget.attrs.update({
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-courses/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#course-select',
+        #     'hx-swap': 'innerHTML',
+        #     'hx-include': '[name="1-course"]'
+        #     })
+        # self.fields['notes'].widget.attrs.update({
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-courses/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#course-select',
+        #     'hx-swap': 'innerHTML',
+        #     'hx-include': '[name="1-course"]'
+        #     })
         
 class ReportCardComment(forms.ModelForm):
     class Meta:
@@ -79,6 +144,8 @@ class AttendanceForm(forms.ModelForm):
             
         # ganti queryset
         self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
+
+
             
 
 
@@ -108,14 +175,14 @@ class AssignmentDetailItemForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
     )
 
-    teacher_notes = forms.CharField(
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
-        required=False
-    )
+    # teacher_notes = forms.CharField(
+    #     widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
+    #     required=False
+    # )
 
     class Meta:
         model = AssignmentDetail
-        fields = ['student', 'score', 'is_active', 'na_reason', 'teacher_notes']
+        fields = ['student', 'score', 'is_active', 'na_reason']
         widgets = {
             'student': forms.HiddenInput(), # ID siswa disembunyikan
         }
@@ -149,16 +216,51 @@ class AssignmentDetailItemForm(forms.ModelForm):
         
 
 # Membuat FormSet Factory
-AssignmentDetailFormSet = formset_factory(AssignmentDetailItemForm, extra=0)
+class AssignmentDetailFormSet(BaseFormSet):
+    def __init__(self, *args, max_score=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_score = max_score
+    
+    def clean(self):
+        super().clean()
+        if self.max_score is not None:
+            for form in self.forms:
+                if form.cleaned_data and form.cleaned_data.get('score') is not None:
+                    if form.cleaned_data['score'] > self.max_score:
+                        form.add_error('score', f"Score cannot exceed {self.max_score}.")
+
+AssignmentDetailFormSet = formset_factory(AssignmentDetailItemForm, formset=AssignmentDetailFormSet, extra=0)
 
 
 class StudentReportcardForm(forms.ModelForm):
     class Meta:
         model = StudentReportcard
-        fields = ["academic_year", "period", "is_mid", "level", "student"]
+        fields = ["academic_year", "period", "is_mid", "level"]
         widgets = {
             'student': forms.Select(attrs={'class': 'form-select select2'}), # Assuming you use select2
         }
+
+class CourseByTeacher(forms.ModelForm):
+    class Meta:
+        model = GradeEntry
+        fields = ["subject", "course"]
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['course'].required = False
+        self.fields['subject'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="1-course"]'
+        })
+        self.fields['course'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'id': 'course-select'
+        })
+
 
 class ReportCardGradeForm(forms.ModelForm):
     # Dummy field for display purposes only
@@ -166,10 +268,15 @@ class ReportCardGradeForm(forms.ModelForm):
         required=False,
         widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
     )
+
+    student_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
+    )
     
 
     # This must be required=False, as you haven't entered a score yet
-    final_score = forms.DecimalField(required=False, max_digits=5, decimal_places=2) 
+    final_score = forms.DecimalField(required=False, max_digits=5, decimal_places=2, initial=0) 
     
     # This must be required=False, as you haven't entered a grade yet
     final_grade = forms.ChoiceField(choices=FINAL_GRADE_CHOICES, required=False) 
@@ -178,7 +285,7 @@ class ReportCardGradeForm(forms.ModelForm):
     subject = forms.ModelChoiceField(queryset=Subject.objects.all(), required=False)
 
     teacher_notes = forms.CharField(
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
+        widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
         required=False
     )
 
@@ -197,6 +304,14 @@ class ReportCardGradeForm(forms.ModelForm):
         self.fields['subject'].widget.attrs['readonly'] = True
         self.fields['subject'].widget.attrs['class'] = 'form-control bg-light'
 
+        self.fields['final_score'].widget.attrs.pop('disabled', None)
+        self.fields['final_score'].widget.attrs['readonly'] = True
+        self.fields['final_score'].widget.attrs['class'] = 'form-control bg-light'
+
+        self.fields['final_grade'].disabled = True
+        self.fields['final_grade'].widget.attrs['readonly'] = True
+        # self.fields['final_grade'].widget.attrs['class'] = 'form-control bg-light'
+
         # Populate subject_name for display if initial data exists
         if self.initial.get('subject'):
             try:
@@ -205,10 +320,15 @@ class ReportCardGradeForm(forms.ModelForm):
             except Subject.DoesNotExist:
                 pass
 
+        # Populate student_name for display if initial data exists
+        if self.initial.get('student_name'):
+            self.fields['student_name'].initial = self.initial['student_name']
+
     class Meta:
         model = ReportcardGrade
-        fields = ['subject', 'final_score', 'final_grade', 'teacher_notes']
+        fields = ['student_name', 'subject', 'final_score', 'final_grade', 'teacher_notes']
         widgets = {
+            'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
             'subject': forms.HiddenInput(),
             'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
             'final_grade': forms.Select(attrs={'class': 'form-select'}),

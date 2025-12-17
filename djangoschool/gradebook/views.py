@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, FileResponse
+from django.http import HttpResponse, FileResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset
+from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher
 from .models import *
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum
@@ -16,9 +16,15 @@ from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Line
 import io
 
-
 def gb_index(request):
     return render(request, "partials/gradebook/index.html")
+
+def get_courses(request):
+    subject_id = request.GET.get('subject_id')
+    if subject_id:
+        courses = Course.objects.filter(subject_id=subject_id).values('id', 'name')
+        return JsonResponse(list(courses), safe=False)
+    return JsonResponse([], safe=False)
 
 def teacher_list(request):
     return HttpResponse("pass")
@@ -40,12 +46,15 @@ def attendance(request):
     # current_teacher = get_object_or_404(Teacher, user=request.user)
     # filtered_students = Teacher.objects.filter(current_teacher)
     if request.method == 'POST':
-        
-        form = AttendanceForm(request.POST, user=request.user)
+        user=request.user
+            # if a user has a teacher relationship / if in the teacher model the logged in user matches with a data in the Teacher model
+        if Class.teacher == user or Class.is_home_class == True:
+            form = AttendanceForm(request.POST, user=request.user)
         # teach_form = TeacherForm(request.POST)
         
-        if form.is_valid():
-            form.save()
+            if form.is_valid():
+                form.save()
+            
             
     form = AttendanceForm(user=request.user)
     # teach_form = TeacherForm()
@@ -101,19 +110,36 @@ class GradeEntryForm(SessionWizardView):
         
         return initial
 
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '2':
+            step1_data = self.get_cleaned_data_for_step('1')
+            if step1_data and 'max_score' in step1_data:
+                kwargs['max_score'] = step1_data['max_score']
+        return kwargs
+
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
         
-        if self.steps.current != '0':
+        if self.steps.current == '1':
             data_step0 = self.get_cleaned_data_for_step('0')
             if data_step0:
                 context['selected_course'] = data_step0.get('course')
+        
+        if self.steps.current == '0':
+            acayear = AcademicYear.objects.all()
+            period = LearningPeriod.objects.all().select_related('academic_year')
+            subject = Subject.objects.all()
+            context['selected_acayear'] = acayear
+            context['selected_period'] = period
+            context['selected_subject'] = subject
         
         # Kirim data head untuk display di step 3 (index '2')
         if self.steps.current == '2':
             data_step1 = self.get_cleaned_data_for_step('1')
             if data_step1:
                 context['assignment_head_data'] = data_step1
+                context['max_score'] = data_step1.get('max_score')
                 
         return context
 
@@ -139,14 +165,18 @@ class GradeEntryForm(SessionWizardView):
 
         # 3. Simpan AssignmentDetail (Looping FormSet)
         details_to_create = []
+        max_score = assignment_head.max_score
         for form in formset_data_2:
             if form.is_valid() and form.cleaned_data: # Pastikan form valid dan tidak kosong
                 note_content = form.cleaned_data.get('teacher_notes')
                 detail = form.save(commit=False)
                 detail.assignment_head = assignment_head # Link ke Head yang baru dibuat
                 detail.teacher_notes = note_content
+                if detail.score > max_score:
+                    return HttpResponse("Error: Score exceeds maximum allowed.")
+                else:
                 # Student sudah ada di instance dari form clean (karena ModelForm)
-                details_to_create.append(detail)
+                    details_to_create.append(detail)
         
         # Bulk create untuk performa lebih cepat
         AssignmentDetail.objects.bulk_create(details_to_create)
@@ -397,21 +427,10 @@ def midterm_report_pdf(request, student_id=None):
     separator.add(line)
     flowables.append(Spacer(1, 24))
 
-    stud_rpc = StudentReportcard.objects.all()
-    rpcard = ReportcardGrade.objects.all()
-    strpc_student = StudentReportcard.student
-
-    # matpel = ReportcardGrade.objects.get(strpc_student)
-    # kkm = AssignmentHead.objects.all()
-    nilai = ReportcardGrade.final_score
-    predikat = ReportcardGrade.final_grade
-
-
-    course_obj = CourseMember.objects.filter(student__id=student_id).select_related('course')
-    kkm = AssignmentHead.objects.all()
-    stud_scor = AssignmentDetail.objects.filter(student__id=student_id)
-
-    rpcard_to_print = ReportcardGrade.objects.get(reportcard__id=student_id)
+    # access student id dari: ReportCardgrade > StudentReportcard > Student
+    student_qs = Student.objects.all()
+    stdnt_rpc = StudentReportcard.objects.get(student_qs=student_id)
+    rpcgrade = ReportcardGrade.objects.get(reportcard__id=stdnt_rpc)
 
     # Aktivitas table
     styles = getSampleStyleSheet()
@@ -559,142 +578,109 @@ class ReportCardForm(SessionWizardView):
     
     form_list = [
         ("0", StudentReportcardForm),
-        ("1", ReportCardGradeFormset),
+        ("1", CourseByTeacher),
+        ("2", ReportCardGradeFormset),
     ]
 
     # def get_template_names(self):
     #     return [self.templates[self.steps.current]]
 
+    # def get_form(self, step=None, data=None, files=None):
+    #     form = super().get_form(step, data, files)
+    #     if step == '1' and form.initial.get('subject'):
+    #         form.fields['course'].queryset = Course.objects.filter(subject=form.initial['subject'])
+    #     return form
+
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
         
-        # LOGIC FOR STEP 1 (The FormSet of Grades/Subjects)
-        if step == '1':
-            step0_data = self.get_cleaned_data_for_step('0')
-            
-            # Safety check: Ensure a student was selected in Step 0
-            if not step0_data or 'student' not in step0_data:
-                return []
-
-            current_student = step0_data['student']
-            
-            # DEBUG: Confirm which student is being processed
-            print(f"DEBUG: Generating FormSet for Student: {current_student} (ID: {current_student.id})")
-
-            # 1. Find the Courses for the currently selected student
-            # We filter only by student ID
-            student_id_for_filter = current_student.id
-
-# Add this print statement:
-            print(f"CRITICAL DEBUG: Selected Student ID is: {student_id_for_filter}")
-            courses = CourseMember.objects.filter(
-                student__id=current_student.id
-            ).select_related('course', 'course__subject')
-
-            initial_list = []
-            
-            # 2. Check for ANY existing Report Card for this student to pre-fill grades.
-            #    (If the user selected a student, we check if they have *any* saved report card)
-            #    NOTE: This might pull grades from a different period if the user is reusing the wizard 
-            #    for different purposes, but it adheres to the "just iterate by student" instruction.
-            existing_rc = StudentReportcard.objects.filter(
-                student=current_student,
-            ).first() 
-
-            # 3. Build the list of dicts for the FormSet
-            for member in courses:
-                # if not member.course.subject:
-                #     continue
-                print(f"DEBUG: Processing Course: {member.course.id}. Subject status: {member.course.subject}")
+        # Logika khusus untuk Step 3 (FormSet Siswa)
+        if step == '2':
+            # Ambil data dari Step 0 (GradeEntry)
+            step0_data = self.get_cleaned_data_for_step('1')
+            if step0_data and 'subject' in step0_data:
+                subject = step0_data['subject']
+                course = step0_data.get('course')
                 
-                row_data = {
-                    'subject': member.course.subject.id, 
-                }
-
-                # If an existing Report Card was found, look for the individual Grade records linked to it
-                if existing_rc:
-                    # CRITICAL FILTER: Look for the grade record attached to this specific Reportcard AND Subject
-                    existing_grade = ReportcardGrade.objects.filter(
-                        reportcard=existing_rc, 
-                        subject=member.course.subject 
-                    ).first() 
-
-                    if existing_grade:
-                        row_data['final_score'] = existing_grade.final_score
-                        row_data['final_grade'] = existing_grade.final_grade
-                        row_data['teacher_notes'] = existing_grade.teacher_notes
+                if course:
+                    # Ambil semua siswa yang aktif di course tersebut
+                    students = CourseMember.objects.filter(
+                        course=course
+                    ).select_related('student')
+                else:
+                    # If no course selected, get all students from all courses of the subject
+                    courses = Course.objects.filter(subject=subject)
+                    students = CourseMember.objects.filter(
+                        course__in=courses
+                    ).select_related('student')
                 
-                initial_list.append(row_data)
-            
-            return initial_list
+                # Siapkan initial data (list of dicts) untuk FormSet
+                initial_list = []
+                for member in students:
+                    initial_list.append({
+                        'student_name': str(member.student),  # Display name from related Student
+                        'subject': subject.id,  # Subject ID from step 1
+                    })
+                return initial_list
         
         return initial
-    
-    def get_form_kwargs(self, step):
-        kwargs = super().get_form_kwargs(step)
-    
-    # For Step 1 (FormSet), pass filtered Subject queryset based on student's courses
-        if step == '1':
-            step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data and 'student' in step0_data:
-                current_student = step0_data['student']
-            
-            # Get all course memberships for this student
-                course_members = CourseMember.objects.filter(
-                    student=current_student
-                ).select_related('course', 'course__subject')
-            
-            # Extract subject IDs from those memberships
-                subject_ids = [member.course.subject.id for member in course_members if member.course and member.course.subject]
-            
-            # Get Subject objects
-                subjects = Subject.objects.filter(id__in=subject_ids).distinct()
-            
-            # Pass the queryset to the formset
-                kwargs['form_kwargs'] = {'subject_queryset': subjects}
-    
-        return kwargs
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
         
-        # Add student name to context for display in the header
-        if self.steps.current == '1':
-            data_step0 = self.get_cleaned_data_for_step('0')
+        if self.steps.current != '0':
+            data_step0 = self.get_cleaned_data_for_step('1')
             if data_step0:
-                context['selected_student'] = data_step0.get('student')
-            # context['selected_period'] = data_step0.get('period')
+                context['selected_course'] = data_step0.get('course')
+
+        if self.steps.current == '1':
+            subject = Subject.objects.all()
+            course = Course.objects.all().select_related('subject')
+            context['selected_subject'] = subject
+            context['selected_course'] = course
         
+        # Kirim data head untuk display di step 3 (index '2')
+        if self.steps.current == '2':
+            data_step1 = self.get_cleaned_data_for_step('1')
+            if data_step1:
+                context['assignment_head_data'] = data_step1
+                
         return context
 
     def done(self, form_list, **kwargs):
         # Ambil data dari form yang sudah divalidasi
-        form_data_0 = form_list[0].cleaned_data # GradeEntry
-        formset_data_1 = form_list[1] # AssignmentDetailFormSet (ini formset object)
+        form_data_0 = form_list[0].cleaned_data # StudentReportcardForm (academic_year, period, is_mid, level)
+        form_data_1 = form_list[1].cleaned_data # CourseByTeacher (course, subject)
 
-        # 1. Simpan GradeEntry (jika masih diperlukan sebagai log)
-        # grade_entry_instance = form_list[0].save()
+        # Get the course and subject from step 1
+        course = form_data_1['course']
+        subject = form_data_1['subject']
 
-        # 2. Buat dan Simpan AssignmentHead
-        # Kita gabungkan data dari Step 0 dan Step 1
-        student_reportcard = StudentReportcard(
-            academic_year=form_data_0['academic_year'],
-            period=form_data_0['period'],
-            is_mid=form_data_0['is_mid'],
-            level=form_data_0['level'],
-            student=form_data_0['student']
-        )
-        student_reportcard.save()
+        # Get all students in the course
+        students_in_course = CourseMember.objects.filter(course=course).select_related('student')
 
-        # 3. Simpan AssignmentDetail (Looping FormSet)
+        # Create a StudentReportcard for each student
+        reportcards = {}
+        for member in students_in_course:
+            student_reportcard = StudentReportcard(
+                academic_year=form_data_0['academic_year'],
+                period=form_data_0['period'],
+                is_mid=form_data_0['is_mid'],
+                level=form_data_0['level'],
+                student=member.student
+            )
+            student_reportcard.save()
+            reportcards[member.student.id] = student_reportcard
+
+        # 3. Simpan ReportcardGrade (Looping FormSet)
         details_to_create = []
         
         print("\n--- DEBUG: Starting FormSet Loop ---")
         
-        # NOTE: formset_data_1 is the formset instance itself
-        formset = form_list[1]
+        formset = form_list[2]  # ReportCardGradeFormset
         
-        for i, form in enumerate(formset.forms): # Use formset.forms for clarity
+        # Zip the formset forms with the students (assuming order matches initial_list)
+        for i, (form, member) in enumerate(zip(formset.forms, students_in_course)):
             
             # Re-validate the form here to force errors to populate the form object
             is_valid = form.is_valid()
@@ -706,7 +692,8 @@ class ReportCardForm(SessionWizardView):
                 print(f"DEBUG: Form {i} Cleaned Data: {form.cleaned_data}")
 
                 # Extract the subject from this form's cleaned_data
-                subject_obj = form.cleaned_data.get('subject')
+                # subject_obj = form.cleaned_data.get('subject')
+                subject_obj = subject  # Use the subject from step 1 directly
                 
                 # Check if the subject object is None
                 if not subject_obj:
@@ -714,7 +701,7 @@ class ReportCardForm(SessionWizardView):
                     continue
 
                 detail = form.save(commit=False)
-                detail.reportcard = student_reportcard
+                detail.reportcard = reportcards[member.student.id]  # Assign the correct reportcard
                 detail.subject = subject_obj
 
                 # If the form corresponds to an existing DB row, save/update it.
@@ -735,4 +722,60 @@ class ReportCardForm(SessionWizardView):
         if details_to_create:
             ReportcardGrade.objects.bulk_create(details_to_create)
             
-        return render(self.request, "partials/gradebook/finished_screen.html")
+        return render(self.request, "partials/gradebook/finished_screen_teachercomm.html")
+
+def get_courses(request):
+    subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
+    selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
+    if subject_id:
+        courses = Course.objects.filter(subject_id=subject_id)
+    else:
+        courses = Course.objects.all()
+    context = {
+        'courses': courses,
+        'selected_course': selected_course
+    }
+    return render(request, "partials/gradebook/course_list.html", context)
+
+def get_period_ge(request):
+    # acayear_id = AcademicYear.objects.first().id
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get('academic_year')
+    selected_period = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
+    if acayear_id:
+        periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
+    else:
+        periods = LearningPeriod.objects.all()
+    context = {
+        'periods': periods,
+        'selected_period': selected_period
+    }
+    return render(request, "partials/gradebook/gradeentry_partials/period.html", context)
+
+
+def get_subjects_ge(request):
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
+    selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
+    if teacher_id:
+        # subjects = Subject.objects.filter(course__coursemember__student__coursemember__course__coursemember__course__teacher__id=teacher_id).distinct()
+        subjects = Subject.objects.filter(course__teacher__id=teacher_id).distinct()
+    else:
+        subjects = Subject.objects.all()
+    context = {
+        'subjects': subjects,
+        'selected_subject': selected_subject
+    }
+    return render(request, "partials/gradebook/gradeentry_partials/subject.html", context)
+
+
+def get_courses_ge(request):
+    subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
+    selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
+    if subject_id:
+        courses = Course.objects.filter(subject_id=subject_id)
+    else:
+        courses = Course.objects.all()
+    context = {
+        'courses': courses,
+        'selected_course': selected_course
+    }
+    return render(request, "partials/gradebook/course_list.html", context)
