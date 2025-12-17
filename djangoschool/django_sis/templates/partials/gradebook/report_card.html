@@ -1,13 +1,14 @@
-{% extends "base.html" %}
+{% extends "base_gradebook.html" %}
 
 {% block content %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
 <div class="wizard-container container mt-4">
     <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Report Card Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
+            <h4 class="mb-0">Teacher's Notes Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
         </div>
 
-        <div class="card-body">
+        <div class="card-body" style="width: 1200px;">
             {% if selected_student %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
                 <span>
@@ -26,7 +27,7 @@
                 {{ wizard.management_form }}
                 
                 {# === STEP 1 (index '1'): List of Subjects === #}
-                {% if wizard.steps.current == '1' %}
+                {% if wizard.steps.current == '2' %}
                 
                     {{ wizard.form.management_form }}
 
@@ -35,10 +36,11 @@
                             <table class="table table-hover table-bordered align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 25%;">Subject</th>
-                                        <th style="width: 15%;">Score</th>
-                                        <th style="width: 15%;">Grade</th>
-                                        <th style="width: 45%;">Teacher's Notes</th>
+                                        <th style="width: 20%;">Student</th>
+                                        {% comment %} <th style="width: 20%;">Subject</th> {% endcomment %}
+                                        <th style="width: 7%;">Score</th>
+                                        <th style="width: 10%;">Grade</th>
+                                        <th style="width: 30%;">Teacher's Notes</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -49,19 +51,27 @@
                                         {% endfor %}
                                         
                                         <td>
-                                            {{ form.subject }}
-                                            {% comment %} {{ form.subject_name }} {% endcomment %}
+                                            {{ form.student_name }}
                                         </td>
 
+                                        {% comment %} <td>
+                                            {% comment %} {{ form.student_name }}
+                                            {% comment %} {{ form.subject_name }}
+                                        </td> {% endcomment %}
+
                                         <td>
+                                        <div style="width: 80px; ">
                                             {{ form.final_score }}
                                             {% if form.final_score.errors %}
                                                 <div class="text-danger small">{{ form.final_score.errors }}</div>
                                             {% endif %}
+                                        </div>
                                         </td>
 
                                         <td>
+                                        <div style="width: 65px; ">
                                             {{ form.final_grade }}
+                                        </div>
                                         </td>
 
                                         <td>
@@ -78,6 +88,29 @@
                         </div>
                     {% endif %}
 
+                {% elif wizard.steps.current == '1' %}
+                {{ wizard.form.management_form }}
+                <div>
+                <table>
+                <tr>
+                <td>
+                {{ wizard.form.subject.label }}
+                </td>
+                <td>
+                {{ wizard.form.subject }}
+                </td>
+                </tr>
+                <tr>
+                <td>
+                {{ wizard.form.course.label }}
+                </td>
+                <td>
+                {{ wizard.form.course }}
+                </td>
+                </tr>
+                </table>
+                </div>
+            
                 {# === STEP 0: Student Selection === #}
                 {% else %}
                     <div class="row">
@@ -101,7 +134,7 @@
                     {% endif %}
 
                     <button type="submit" class="btn btn-success px-4">
-                        {% if wizard.steps.current == '1' %}
+                        {% if wizard.steps.current == '2' %}
                             <i class="bi bi-save"></i> Save Report Card
                         {% else %}
                             Next &raquo;

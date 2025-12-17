@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_gradebook.html" %}
 
 {% block content %}
 <div class="wizard-container container mt-4">
@@ -6,7 +6,33 @@
         <div class="card-header bg-primary text-white">
             <h4 class="mb-0">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
         </div>
-        
+        {% comment %} <table>
+        <tr>
+        <td>
+        <p>Academic year: </p>
+        </td>
+        <td>
+        {{ form.academic_year }}
+        </td>
+        </tr>
+        <tr>
+        <td>
+        <p>Period: </p>
+        </td>
+        <td>
+        {{ form.period }}
+        </td>
+        </tr>
+        <tr>
+        <td>
+        <p>Teacher: </p>
+        </td>
+        <td>
+        {{ form.teacher }}
+        </td>
+        </tr>
+        </table> {% endcomment %}
+
         <div class="card-body">
             {% if selected_course %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
@@ -40,6 +66,7 @@
                                         <th style="width: 30%;">Name</th>
                                         <th style="width: 20%;">Score</th>
                                         <th style="width: 30%;">Nonactive Details</th>
+                                        {% comment %} <th style="width: 70%;">Teacher's Notes</th> {% endcomment %}
                                         <th style="width: 10%;">Active?</th>
                                     </tr>
                                 </thead>
@@ -73,6 +100,13 @@
                                             {% endif %}
                                         </td>
 
+                                        {% comment %} <td>
+                                            {{ form.teacher_notes }}
+                                            {% if form.teacher_notes.errors %}
+                                                <div class="text-danger small">{{ form.teacher_notes.errors }}</div>
+                                            {% endif %}
+                                        </td> {% endcomment %}
+
                                         <td class="text-center">
                                             {{ form.is_active }}
                                         </td>
@@ -90,9 +124,111 @@
                 {# === STEP 1 & 2 (index '0' & '1'): Tampilan FORM Biasa === #}
                 {% else %}
                     <div class="row">
+                    {{ wizard.form.management_form }}
                         <div class="col-md-8 offset-md-2">
                             <table class="table table-borderless">
-                                {{ wizard.form.as_table }}
+                                {% if wizard.steps.current == '0' %}
+                                <tr>
+                                <td>
+                                {{ wizard.form.academic_year.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.academic_year }}
+                                    <div class="error">
+                                        {{ wizard.form.academic_year.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.period.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.period }}
+                                    <div class="error">
+                                        {{ wizard.form.period.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.teacher.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.teacher }}
+                                    <div class="error">
+                                        {{ wizard.form.teacher.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.subject.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.subject }}
+                                    <div class="error">
+                                        {{ wizard.form.subject.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.course.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.course }}
+                                    <div class="error">
+                                        {{ wizard.form.course.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.assignment_type.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.assignment_type }}
+                                    <div class="error">
+                                        {{ wizard.form.assignment_type.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                {% elif wizard.steps.current == '1' %}
+                                <tr>
+                                <td>
+                                {{ wizard.form.date.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.date }}
+                                    <div class="error">
+                                        {{ wizard.form.date.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.topic.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.topic }}
+                                    <div class="error">
+                                        {{ wizard.form.topic.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.max_score.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.max_score }}
+                                    <div class="error">
+                                        {{ wizard.form.max_score.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                {% endif %}
                             </table>
                         </div>
                     </div>
@@ -109,7 +245,7 @@
                         <div></div> 
                     {% endif %}
 
-                    <button type="submit" class="btn btn-success px-4">
+                    <button type="submit" class="btn btn-success px-4" onclick="confirmSubmit(event)">
                         {% if wizard.steps.current == '2' %}
                             <i class="bi bi-save"></i> Save Grades
                         {% else %}
@@ -137,4 +273,19 @@
         width: 100%;
     }
 </style>
+{% comment %} <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const dropdown = document.getElementById('sortDropdown');
+        const btnPrint = document.getElementById('btnExportPDF');
+
+        function updateLink() {
+            const selectedVal = dropdown.value;
+            btnPrint.href = `${baseUrl}?sort=${selectedVal}`;
+        }
+
+        dropdown.addEventListener('change', updateLink);
+        // Opsional: Jalankan sekali saat load
+        // updateLink(); 
+    });
+</script> {% endcomment %}
 {% endblock %}
