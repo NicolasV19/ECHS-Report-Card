@@ -155,6 +155,11 @@ class SchoolData(models.Model):
 class SchoolLevel(models.Model):
     level_name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "School Levels"
+        verbose_name = "School Level"
+
     def __str__(self):
         return self.level_name
 
@@ -162,6 +167,11 @@ class GradeLevel(models.Model):
     school_level = models.ForeignKey(SchoolLevel, on_delete=models.CASCADE)
     grade_name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "Grade Levels"
+        verbose_name = "Grade Level"
+
     def __str__(self):
         return self.grade_name
 
