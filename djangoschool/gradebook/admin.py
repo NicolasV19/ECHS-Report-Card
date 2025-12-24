@@ -1,6 +1,7 @@
 from django.contrib import admin
 import decimal
-from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator
+from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator, StudentReportcard, ReportcardGrade, GradeLevel
+from simple_history.admin import SimpleHistoryAdmin
 
 
 class SubjectAdmin(admin.ModelAdmin):
@@ -43,7 +44,7 @@ class WeightingAdmin(admin.ModelAdmin):
     format_percentage.short_description = "Weight %"
 
 class GradeEntryAdmin(admin.ModelAdmin):
-    list_display = ("academic_year", "school_level", "course", "period", "subject", "teacher")
+    list_display = ("academic_year", "course", "period", "subject", "teacher")
     def delete_queryset(self, request, queryset):
         pass
 
@@ -54,6 +55,34 @@ class RubricAdmin(admin.ModelAdmin):
     list_display = ("type", "description", "index")
     list_filter = ["academic_year", "type" ]
     inlines = [ RubricIndicatorAdmin ]
+
+    
+class ReportcardGradeAdmin(admin.TabularInline):
+    model = ReportcardGrade
+
+
+class StudentReportcardAdmin(admin.ModelAdmin):
+    list_display = ("academic_year", "period", "is_mid", "level", "student")
+    list_filter = ["academic_year", "is_mid", "student" ]
+    inlines = [ ReportcardGradeAdmin ]
+
+class StudentReportcardHistory(SimpleHistoryAdmin):
+    list_display = ("academic_year", "period", "is_mid", "level", "student")
+    history_list_display = ["academic_year", "is_mid", "student" ]
+    inlines = [ ReportcardGradeAdmin ]
+
+class ReportcardGradeAdmin(admin.ModelAdmin):
+    list_display = ("reportcard", "subject", "grade", "comments")
+    history_list_display = ["reportcard", "subject" ]
+
+class ReportCardGradeHistory(SimpleHistoryAdmin):
+    list_display = ("reportcard", "subject")
+    history_list_display = ["reportcard", "subject"]
+
+class GradeLevelAdmin(admin.ModelAdmin):
+    list_display = ("grade_name", "school_level", "short_name")
+    list_filter = ["school_level"]
+
 
 
 # Register your models here.
@@ -66,3 +95,6 @@ admin.site.register(PassingGrade, PassingGradeAdmin)
 admin.site.register(GradeEntry, GradeEntryAdmin)
 admin.site.register(Rubric, RubricAdmin)
 admin.site.register(RubricIndicator)
+admin.site.register(StudentReportcard, StudentReportcardHistory)
+admin.site.register(ReportcardGrade, ReportCardGradeHistory)
+admin.site.register(GradeLevel, GradeLevelAdmin)

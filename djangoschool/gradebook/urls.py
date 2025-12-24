@@ -16,5 +16,7 @@ urlpatterns = [
     path('get-period-ge/', views.get_period_ge, name='get_period_ge'),
     path('get-courses-ge/', views.get_courses, name='get_courses_ge'),
     path('get-subjects-ge/', views.get_subjects_ge, name='get_subjects_ge'),
+    path('reportcard-summary/', views.ReportCardGradeSummary.as_view(), name='reportcard-summary'),
+    # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
     ]

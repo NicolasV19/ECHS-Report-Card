@@ -4,7 +4,7 @@ from formtools.wizard.views import SessionWizardView
 from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher
 from .models import *
 from admission.models import Class, ClassMember, Teacher, Student, User
-from django.db.models import Sum
+from django.db.models import Sum, Avg, Count, Max, Min
 from django.db.models import F
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -14,6 +14,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Line
+from slick_reporting.views import ReportView, SlickReportView
+from slick_reporting.fields import ComputationField
 import io
 
 def gb_index(request):
@@ -47,13 +49,14 @@ def attendance(request):
     # filtered_students = Teacher.objects.filter(current_teacher)
     if request.method == 'POST':
         user=request.user
+        # homeroom_check = Class.objects.filter(teacher__user=user, is_home_class=True).first()
             # if a user has a teacher relationship / if in the teacher model the logged in user matches with a data in the Teacher model
-        if Class.teacher == user or Class.is_home_class == True:
-            form = AttendanceForm(request.POST, user=request.user)
+        # if homeroom_check:
+        form = AttendanceForm(request.POST, user=request.user)
         # teach_form = TeacherForm(request.POST)
         
-            if form.is_valid():
-                form.save()
+        if form.is_valid():
+            form.save()
             
             
     form = AttendanceForm(user=request.user)
@@ -86,6 +89,15 @@ class GradeEntryForm(SessionWizardView):
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
         
+        # if step == '0':
+        #     initial['academic_year'] = None
+        #     initial['period'] = None
+        #     initial['teacher'] = None
+        #     initial['subject'] = None
+        #     initial['course'] = None
+        #     initial['assignment_type'] = None
+
+
         # Logika khusus untuk Step 3 (FormSet Siswa)
         if step == '2':
             # Ambil data dari Step 0 (GradeEntry)
@@ -429,8 +441,9 @@ def midterm_report_pdf(request, student_id=None):
 
     # access student id dari: ReportCardgrade > StudentReportcard > Student
     student_qs = Student.objects.all()
-    stdnt_rpc = StudentReportcard.objects.get(student_qs=student_id)
-    rpcgrade = ReportcardGrade.objects.get(reportcard__id=stdnt_rpc)
+    stdnt_rpc = StudentReportcard.objects.get(student=student_id)
+    rpcgrade = ReportcardGrade.objects.get(reportcard=stdnt_rpc)
+    rpcard_to_print = ReportcardGrade.objects.filter(reportcard=stdnt_rpc)
 
     # Aktivitas table
     styles = getSampleStyleSheet()
@@ -448,7 +461,7 @@ def midterm_report_pdf(request, student_id=None):
     data_nilai = [headers_nilai]
 
     
-    for obj, in rpcard_to_print:
+    for obj in rpcard_to_print:
         
         data_row = [
             obj.subject,
@@ -593,6 +606,8 @@ class ReportCardForm(SessionWizardView):
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
+
+
         
         # Logika khusus untuk Step 3 (FormSet Siswa)
         if step == '2':
@@ -744,7 +759,7 @@ def get_period_ge(request):
     if acayear_id:
         periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
     else:
-        periods = LearningPeriod.objects.all()
+        periods = LearningPeriod.objects.none()
     context = {
         'periods': periods,
         'selected_period': selected_period
@@ -779,3 +794,167 @@ def get_courses_ge(request):
         'selected_course': selected_course
     }
     return render(request, "partials/gradebook/course_list.html", context)
+
+
+class ReportCardGradeSummary(SlickReportView):
+    # template_name = "partials/gradebook/report_summary.html"
+
+    # def get_columns(self):
+    #     columns = [
+    #         "reportcard__student__registration_data__first_name",
+    #     ]
+    #     subjects = Subject.objects.all()
+    #     for subject in subjects:
+    #         columns.append(
+    #             ComputationField.create(
+    #                 Sum, "final_score", 
+    #                 name=f"subject_{subject.id}_score", 
+    #                 verbose_name=subject.subject_name, 
+    #                 is_summable=True
+    #             )
+    #         )
+    #     return columns
+
+    report_model = ReportcardGrade
+    
+    group_by = "reportcard__student__registration_data__first_name"
+
+    subjects = Subject.objects.all()
+
+    columns = [
+        # 2. Ensure this matches the group_by field to display the text label
+        "reportcard__academic_year",
+        "reportcard__student__id_number", 
+        "reportcard__student__registration_data__first_name", 
+    ]
+
+    
+    for subject in subjects:
+        columns.append(
+            ComputationField.create(
+                Sum, "final_score",  # Aggregates (sums) the final_score for each student-subject
+                name=f"subject_{subject.id}_score", 
+                verbose_name=subject.short_name,  # Displays the subject name as the column header
+                is_summable=False
+            )
+        )
+
+    # columns.append(
+    #     ComputationField.create(
+    #         Sum, "final_score",  # Total final_score across all subjects for each student
+    #         name="total_score", 
+    #         verbose_name="Total Score", 
+    #         is_summable=False
+    #     )
+    # )
+
+    # crosstab_field = "subject_id"
+
+    # computation_fields = [
+    #     ComputationField.create(
+    #         Sum, "final_score", name="final_score", verbose_name="Final Score", is_summable=True
+    #     )
+    # ]
+
+    # crosstab_ids = ["Mathematics", "Biology", "Geography", "Chemistry"]  # Example subject names
+    # crosstab_computer_remainder = True
+    # crosstab_columns = [
+    #         ComputationField.create(
+    #         Count, "subject", name="final_score", verbose_name="Final Score", is_summable=True,
+    #     )
+    # ]
+    
+    # crosstab_ids = Subject.objects.values_list('subject_name', flat=True)
+
+
+
+    export_actions = ["export_pdf"]
+
+    def export_pdf(self, report_data):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="grade_report.pdf"'
+
+        # 2. Create a buffer to hold the PDF data
+        buffer = io.BytesIO()
+        
+        # Use Landscape A4 because crosstabs tend to be wide
+        doc = SimpleDocTemplate(buffer, pagesize=(800, 600))
+        elements = []
+
+        # 3. Prepare the Data for the Table
+        # report_data['columns'] holds the definitions. 
+        # report_data['data'] holds the list of dictionaries (rows).
+        
+        columns = report_data['columns']
+        
+        # A. Create the Header Row
+        # We extract 'verbose_name' to show "Biology" instead of "subject_1"
+        headers = [col['verbose_name'] for col in columns]
+        table_data = [headers]
+
+        # B. Create the Data Rows
+        # We must loop through columns to ensure order matches headers
+        for record in report_data['data']:
+            row = []
+            for col in columns:
+                # Use the column 'name' (id) to fetch value from the record dictionary
+                key = col['name']
+                value = record.get(key, "-") # Default to "-" if empty
+                row.append(str(value))       # Ensure it's a string
+            table_data.append(row)
+
+        # 4. Create and Style the Table
+        # 'colWidths' can be set to None (auto) or specific values
+        table = Table(table_data)
+
+        # Add styling: Grid, Bold Header, Alternating Row Colors
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),       # Header background
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),  # Header text color
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),              # Center align all text
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),    # Header font
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),             # Header padding
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),     # Default row background
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),        # Add grid lines
+        ])
+        table.setStyle(style)
+
+        # 5. Add Title and Table to the Document
+        styles = getSampleStyleSheet()
+        elements.append(Paragraph("Student Grade Crosstab Report", styles['Title']))
+        elements.append(table)
+
+        # 6. Build the PDF
+        doc.build(elements)
+
+        # 7. Get the value of the BytesIO buffer and write it to the response
+        pdf = buffer.getvalue()
+        buffer.close()
+        response.write(pdf)
+        
+        return response
+
+    export_pdf.title = ("Export PDF")
+    export_pdf.icon = "fa fa-file-pdf-o"
+    export_pdf.css_class = "btn btn-primary"
+
+    def export_csv(self, report_data):
+        return super().export_csv(report_data)
+
+    export_csv.title = ("Export Report Card to CSV")
+    export_csv.css_class = "btn btn-success"
+
+    filters = [
+        "reportcard__academic_year",
+        "reportcard__period",
+        "reportcard__level",
+    ]
+
+    report_title = "Student Report Card Crosstab"
+
+def report_card_summary(request):
+    report = ReportCardGradeSummary()
+    report.request = request
+    report.GET = request.GET
+    return render(request, 'partials/gradebook/report_summary.html', {'report': report})
+

@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django import forms
 from django.forms import modelform_factory, formset_factory, modelformset_factory, BaseFormSet
-from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject, Course
+from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject, Course, LearningPeriod, AcademicYear
 from admission.models import Class, ClassMember, Teacher, AbstractClass, Student
 
 # Define grade choices
@@ -22,6 +22,8 @@ class GradeEntryForm(forms.ModelForm):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        acayear_nonidleval = self.initial.get('academic_year') or self.data.get('academic_year')
+
         self.fields['academic_year'].widget.attrs.update({
             'hx-get': '/gradebook/get-period-ge/',
             'hx-trigger': 'change',
@@ -30,6 +32,13 @@ class GradeEntryForm(forms.ModelForm):
             'hx-include': '[name="0-period"]'
         })
         self.fields['period'].widget.attrs['id'] = 'period-select-ge'
+        if acayear_nonidleval:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+            self.fields['period'].disabled = True
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.all()
+
+        
         self.fields['teacher'].widget.attrs.update({
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-subjects-ge/',
@@ -38,6 +47,12 @@ class GradeEntryForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
             'hx-include': '[name="0-subject"]'
         })
+        period_nonidleval = self.initial.get('period') or self.data.get('period')
+        if period_nonidleval:
+            self.fields['teacher'].queryset = Teacher.objects.none()
+            self.fields['teacher'].disabled = False
+        else:
+            self.fields['teacher'].queryset = Teacher.objects.all()
         self.fields['subject'].widget.attrs.update({
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
@@ -134,7 +149,8 @@ class AttendanceForm(forms.ModelForm):
         # get current Teacher.user
         current_teacher = Teacher.objects.get(user=user)
         # filter Class table by current Teacher.user
-        teacher_classes = Class.objects.filter(teacher=current_teacher)
+        teacher_classes = Class.objects.filter(teacher=current_teacher, is_home_class=True)
+        teacher_classes_nothomeroom = Class.objects.filter(teacher=current_teacher, is_home_class=False)
             
         # filter ClassMember by filtered Class in kelas
         student_ids = ClassMember.objects.filter(
@@ -142,8 +158,13 @@ class AttendanceForm(forms.ModelForm):
             is_active=True
         ).values_list('student_id', flat=True)
             
+        
         # ganti queryset
-        self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
+        # self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
+        if teacher_classes:
+            self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
+        else:
+            self.fields['student'].queryset = Student.objects.all()
 
 
             
@@ -239,6 +260,20 @@ class StudentReportcardForm(forms.ModelForm):
         widgets = {
             'student': forms.Select(attrs={'class': 'form-select select2'}), # Assuming you use select2
         }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['academic_year'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#period-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="1-period"]'
+            })
+        self.fields['period'].widget.attrs.update({
+                'class': 'custom-select mb-4',
+                'id': 'period-select'
+                })
 
 class CourseByTeacher(forms.ModelForm):
     class Meta:
