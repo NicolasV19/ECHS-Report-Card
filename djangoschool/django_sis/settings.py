@@ -49,9 +49,16 @@ INSTALLED_APPS = [
     "django_htmx",
     "admission",
     "gradebook",
+    "crispy_forms",
+    "formtools",
+    'simple_history', # django-simple-history
+    "slick_reporting", # django-slick-reporting
+    "crispy_bootstrap4", # django-slick-reporting
 ]
 
+CRISPY_TEMPLATE_PACK = "bootstrap4"
 MIDDLEWARE = [
+    'simple_history.middleware.HistoryRequestMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -168,3 +175,20 @@ DAISY_SETTINGS = {
     },
 }
 #LOGIN_REDIRECT_URL = '/'
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'handlers': {
+#         'console': {
+#             'level': 'DEBUG',
+#             'class': 'logging.StreamHandler',
+#         },
+#     },
+#     'loggers': {
+#         'django.db.backends': {
+#             'handlers': ['console'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#     },
+# }
