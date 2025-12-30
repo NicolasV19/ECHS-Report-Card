@@ -1,115 +1,85 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.http import HttpResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet
-from .models import CourseMember, AssignmentHead, AssignmentDetail, GradeEntry
+from .forms import PersonalInfoForm, ContactInfoForm, ParentInfoForm
+from .models import Registration, AbstractPerson
 
+# Create your views here.
+def index(request):
+    return HttpResponse("Welcome to Admission apps portal.")
 
-def gb_index(request):
-    return render(request, "partials/gradebook/index.html")
+class AdmissionView(SessionWizardView):
+    template_name = "partials/admission/admission.html"
 
-def teacher_list(request):
-    return HttpResponse("pass")
-
-def course_list(request):
-    return HttpResponse("pass")
-
-def grade_entry(request):
-    entry = GradeEntry.objects.get(pk=3)
-    form = GradeEntryForm(instance=entry)
-    context = {'form': form }
-    return render(request, "partials/gradebook/entry.html", context)
-
-def get_period(request):
-    pass
-
-
-class GradeEntryForm(SessionWizardView):
-    # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
-    template_name = "partials/gradebook/grade_entry.html"
-    
     form_list = [
-        ("0", GradeEntryForm),
-        ("1", AssignmentHeadForm),
-        ("2", AssignmentDetailFormSet), # Step 3 pakai FormSet
+        ("0", PersonalInfoForm),
+        ("1", ContactInfoForm),
+        ("2", ParentInfoForm), # Step 3 pakai FormSet
     ]
 
-    # def get_template_names(self):
-    #     return [self.templates[self.steps.current]]
-
-    def get_form_initial(self, step):
-        initial = super().get_form_initial(step)
-        
-        # Logika khusus untuk Step 3 (FormSet Siswa)
-        if step == '2':
-            # Ambil data dari Step 0 (GradeEntry)
-            step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data and 'course' in step0_data:
-                course = step0_data['course']
-                
-                # Ambil semua siswa yang aktif di course tersebut
-                students = CourseMember.objects.filter(
-                    course=course, 
-                    is_active=True
-                ).select_related('student')
-                
-                # Siapkan initial data (list of dicts) untuk FormSet
-                initial_list = []
-                for member in students:
-                    initial_list.append({
-                        'student': member.student.id, # Untuk Hidden Field
-                        'is_active': member.is_active,
-                    })
-                return initial_list
-        
-        return initial
-
-    def get_context_data(self, form, **kwargs):
-        context = super().get_context_data(form=form, **kwargs)
-        
-        if self.steps.current != '0':
-            data_step0 = self.get_cleaned_data_for_step('0')
-            if data_step0:
-                context['selected_course'] = data_step0.get('course')
-        
-        # Kirim data head untuk display di step 3 (index '2')
-        if self.steps.current == '2':
-            data_step1 = self.get_cleaned_data_for_step('1')
-            if data_step1:
-                context['assignment_head_data'] = data_step1
-                
-        return context
-
     def done(self, form_list, **kwargs):
-        # Ambil data dari form yang sudah divalidasi
-        form_data_0 = form_list[0].cleaned_data # GradeEntry
-        form_data_1 = form_list[1].cleaned_data # AssignmentHead
-        formset_data_2 = form_list[2] # AssignmentDetailFormSet (ini formset object)
+        if form_list:
+            form_data = {}
+            for form in form_list:
+                form_data.update(form.cleaned_data)
+            # Simpan data ke model Registration
 
-        # 1. Simpan GradeEntry (jika masih diperlukan sebagai log)
-        grade_entry_instance = form_list[0].save()
+            registration = Registration.objects.create(
+                form_no=form_data.get('form_no'),
+                first_name=form_data.get('first_name'),
+                last_name=form_data.get('last_name'),
+                middle_name=form_data.get('middle_name'),
+                gender=form_data.get('gender'),
+                nisn=form_data.get('nisn'),
+                prev_school=form_data.get('prev_school'),
+                prev_nis=form_data.get('prev_nis'),
+                birth_order=form_data.get('birth_order'),
+                date_of_birth=form_data.get('date_of_birth'),
+                place_of_birth=form_data.get('place_of_birth'),
+                religion=form_data.get('religion'),
+                church_name=form_data.get('church_name'),
+                current_address=form_data.get('current_address'),
+                current_district=form_data.get('current_district'),
+                current_region=form_data.get('current_region'),
+                current_city=form_data.get('current_city'),
+                current_province=form_data.get('current_province'),
+                contact_whatsapp=form_data.get('contact_whatsapp'),
+                contact_mobile=form_data.get('contact_mobile'),
+                contact_email=form_data.get('contact_email'),
+                contact_preference=form_data.get('contact_preference'),
+                mother_name=form_data.get('mother_name'),
+                mother_nik=form_data.get('mother_nik'),
+                mother_religion=form_data.get('mother_religion'),
+                mother_education=form_data.get('mother_education'),
+                mother_occupation=form_data.get('mother_occupation'),
+                mother_address_same2applicant=form_data.get('mother_address_same2applicant'),
+                mother_address=form_data.get('mother_address'),
+                mother_district=form_data.get('mother_district'),
+                mother_region=form_data.get('mother_region'),
+                mother_city=form_data.get('mother_city'),
+                mother_province=form_data.get('mother_province'),
+                mother_phone=form_data.get('mother_phone'),
+                mother_mobile=form_data.get('mother_mobile'),
+                mother_whatsapp=form_data.get('mother_whatsapp'),
+                mother_email=form_data.get('mother_email'),
+                father_name=form_data.get('father_name'),
+                father_nik=form_data.get('father_nik'),
+                father_religion=form_data.get('father_religion'),
+                father_education=form_data.get('father_education'),
+                father_occupation=form_data.get('father_occupation'),
+                father_address_same2applicant=form_data.get('father_address_same2applicant'),
+                father_address=form_data.get('father_address'),
+                father_district=form_data.get('father_district'),
+                father_region=form_data.get('father_region'),
+                father_city=form_data.get('father_city'),
+                father_province=form_data.get('father_province'),
+                father_phone=form_data.get('father_phone'),
+                father_mobile=form_data.get('father_mobile'),
+                father_whatsapp=form_data.get('father_whatsapp'),
+                father_email=form_data.get('father_email'),
+            )
 
-        # 2. Buat dan Simpan AssignmentHead
-        # Kita gabungkan data dari Step 0 dan Step 1
-        assignment_head = AssignmentHead(
-            assignment=form_data_0['assignment_type'], # Dari Step 0
-            course=form_data_0['course'],              # Dari Step 0
-            date=form_data_1['date'],                  # Dari Step 1
-            topic=form_data_1['topic'],                # Dari Step 1
-            max_score=form_data_1['max_score']         # Dari Step 1
-        )
-        assignment_head.save()
+        registration.save()
 
-        # 3. Simpan AssignmentDetail (Looping FormSet)
-        details_to_create = []
-        for form in formset_data_2:
-            if form.is_valid() and form.cleaned_data: # Pastikan form valid dan tidak kosong
-                detail = form.save(commit=False)
-                detail.assignment_head = assignment_head # Link ke Head yang baru dibuat
-                # Student sudah ada di instance dari form clean (karena ModelForm)
-                details_to_create.append(detail)
         
-        # Bulk create untuk performa lebih cepat
-        AssignmentDetail.objects.bulk_create(details_to_create)
-
-        return render(self.request, "partials/gradebook/finished_screen.html")
+        return render(self.request, "partials/admission/finished_screen.html")
