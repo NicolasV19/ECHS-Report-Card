@@ -17,6 +17,8 @@ urlpatterns = [
     path('get-courses-ge/', views.get_courses, name='get_courses_ge'),
     path('get-subjects-ge/', views.get_subjects_ge, name='get_subjects_ge'),
     path('reportcard-summary/', views.ReportCardGradeSummary.as_view(), name='reportcard-summary'),
+    path('reportcard-summary-pdf-rplab/', views.report_card_summary_pdf_rplab, name='reportcard-summary-pdf-rplab'),
+    path('reportcard-nonslick/', views.report_card_nonslick, name='reportcard-nonslick'),
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
     ]

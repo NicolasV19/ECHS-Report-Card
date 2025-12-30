@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher
+from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher, ReportCardFilterForm
 from .models import *
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min
@@ -796,7 +796,7 @@ def get_courses_ge(request):
     return render(request, "partials/gradebook/course_list.html", context)
 
 
-class ReportCardGradeSummary(SlickReportView):
+class ReportCardGradeSummary(ReportView):
     # template_name = "partials/gradebook/report_summary.html"
 
     # def get_columns(self):
@@ -816,16 +816,20 @@ class ReportCardGradeSummary(SlickReportView):
     #     return columns
 
     report_model = ReportcardGrade
+
+    date_field = "reportcard__period__date_end"
     
     group_by = "reportcard__student__registration_data__first_name"
 
     subjects = Subject.objects.all()
 
+    # form_class = ReportCardFilterForm
+
     columns = [
         # 2. Ensure this matches the group_by field to display the text label
-        "reportcard__academic_year",
         "reportcard__student__id_number", 
         "reportcard__student__registration_data__first_name", 
+        "reportcard__student__registration_data__last_name"
     ]
 
     
@@ -945,9 +949,7 @@ class ReportCardGradeSummary(SlickReportView):
     export_csv.css_class = "btn btn-success"
 
     filters = [
-        "reportcard__academic_year",
-        "reportcard__period",
-        "reportcard__level",
+        "final_score",
     ]
 
     report_title = "Student Report Card Crosstab"
@@ -957,4 +959,267 @@ def report_card_summary(request):
     report.request = request
     report.GET = request.GET
     return render(request, 'partials/gradebook/report_summary.html', {'report': report})
+
+def report_card_summary_pdf_rplab(request):
+    buf = io.BytesIO()
+    # student_id = Student.id
+
+    filename = f"Report_Card.pdf"
+
+
+    doc = SimpleDocTemplate(buf, pagesize=(900, 600))
+    flowables = []
+
+    styles = getSampleStyleSheet()
+
+    center_style = ParagraphStyle(
+        'Center',
+        parent=styles['Normal'],
+        alignment=TA_CENTER,
+        fontName='Times-Roman'
+)
+    
+    center_style_small = ParagraphStyle(
+        'Center',
+        parent=styles['Normal'],
+        alignment=TA_CENTER,
+        fontSize=8,
+        fontName='Times-Roman'
+)
+
+    title_style = ParagraphStyle(
+        'TitleStyle',             # A name for the style
+        parent=styles['Heading3'],  # Base it on the default "Heading1"
+        fontSize=20,                # "Really big" size
+        alignment=TA_CENTER,        # Center the text
+        fontName='Times-Bold'   # Make sure it's bold
+    )
+
+    heading_style = ParagraphStyle(
+        'HeadingStyle',             # A name for the style
+        parent=styles['Heading3'],  # Base it on the default "Heading1"              # "Really big" size        # Center the text
+        fontName='Times-Bold'   # Make sure it's bold
+    )
+
+    times_nr = ParagraphStyle(
+        'TimesNewRoman',
+        fontName='Times-Bold'
+    )
+
+    kopsurat_nama_institusi = ParagraphStyle(
+        'KopSuratNamaInstitusi',
+        parent=styles['Normal'],
+        fontSize=24,
+        leading=24,
+        alignment=TA_CENTER,
+        fontName='Times-Roman',
+        textColor="#5A0303"
+    )
+    available_width = doc.width
+
+    separator = Drawing(available_width, 2)
+
+    line = Line(
+        x1=1, y1=1,
+        x2=available_width, y2=1,
+        strokeColor=colors.HexColor("#510000"),
+        strokeWidth=1
+    )
+
+    separator.add(line)
+    
+    # # kopsurat versi gambar
+    # kop_surat = os.path.join(settings.BASE_DIR, 'media/ekupoint/kopsurat.jpg')
+
+    # # logo STTE, buat rekreasi kopsurat
+    # logo = os.path.join(settings.BASE_DIR, 'media/ekupoint/logo-stte-jakarta-bwt-kopsurat.png')
+
+    # setting gambar
+    # kopsur = Image(kop_surat)
+    # logo_stte = Image(logo, width=120, height=90)
+    
+    # kopsurat yang diambil dari dokumen2 lain; kalo mau dipake tinggal di uncomment
+    # flowables.append(kopsur)
+
+    header_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
+    akt_text_raw = "Aktivitas Mahasiswa:"
+    pel_text_raw = "Pelanggaran Mahasiswa:"
+    akt_text = Paragraph(akt_text_raw, times_nr)
+    pel_text = Paragraph(pel_text_raw, times_nr)
+    # header_2 = f"Nama: {user_obj.get_full_name()}"
+    # header_3 = f"NIM: {user_obj.nim}"
+    # header_4 = f"Prodi: {user_obj.prodi}"
+    # header_5 = f"Angkatan: {user_obj.angkatan}"
+    header = Paragraph(header_text, title_style)
+    # header_dua = Paragraph(header_2)
+    # header_tiga = Paragraph(header_3)
+    # header_empat = Paragraph(header_4)
+    # header_lima = Paragraph(header_5)
+
+    # data2 rekreasi kop surat
+    # kop_left_content = [
+    #     logo_stte,
+    # ]
+
+    # kop_right_content = [
+    #     Paragraph("SEKOLAH TINGGI TEOLOGI EKUMENE JAKARTA", kopsurat_nama_institusi),
+    #     Spacer(1, 4),
+    #     Paragraph("Mall Artha Gading Lantai 3, Jl. Artha Gading Sel. No. 3, Kelapa Gading, Jakarta Utara, Indonesia 14240", center_style_small),
+    #     Paragraph("+628197577740      institusi.stte@sttekumene.ac.id      sttekumene.ac.id", center_style_small),
+    # ]
+
+    # kopsurat_data_1 = [
+    #     [kop_right_content],
+    # ]
+
+    # kopsurat_table = Table(kopsurat_data_1, colWidths=[100, 400])
+
+    # kopsurat_table.setStyle(TableStyle([
+    #         ('GRID', (0, 0), (-1, -1), 0.5, "#FFFFFFFF"), # No grid
+    #         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    #         ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Align labels (col 0) to the left
+    #         ('ALIGN', (1, 0), (1, -1), 'LEFT'), # Align values (col 1) to the left
+    #         ('FONTNAME', (0, 0), (0, -1), 'Times-Roman') # Make labels bold
+    #     ]))
+    # # rekreasi kop surat
+    # flowables.append(kopsurat_table)
+    # flowables.append(separator)
+    # flowables.append(Spacer(1, 24))
+    
+    # judul ("EKUPOINT REPORT")
+    flowables.append(header)
+    # flowables.append(Spacer(1, 12))
+    # flowables.append(header_dua)
+    flowables.append(Spacer(1, 24))
+
+    # access student id dari: ReportCardgrade > StudentReportcard > Student
+    stdnt_rpc = StudentReportcard.objects.all()
+    rpcgrade = ReportcardGrade.objects.all()
+    rpcard_to_print = ReportcardGrade.objects.all()
+
+    # Aktivitas table
+    styles = getSampleStyleSheet()
+    subjects = Subject.objects.all()
+    small = ParagraphStyle('small', parent=styles['Normal'], fontSize=8, leading=10, fontName='Times-Roman', splitLongWords=1, wordWrap='LTR')
+    # headers_aktivitas = ["Aktivitas", "Jenis", "Lingkup", "Poin", "Kuantitas", "Keterangan", "File", "Status", "Tanggal"]
+    headers_nilai = ["NISN", "Nama Siswa"]
+
+    for subs in subjects:
+        subs.subject_name
+        headers_nilai.append(subs.subject_name)
+    # aktivitas_total = contactdata.aggregate(
+    #     total=Sum(F('aturan_merit__poin') * F('kuantitas'))
+    # )['total'] or 0
+    
+
+    # pelanggaran_total = pelanggaran.aggregate(
+    #     total=Sum(F('aturan_demerit__poin') * F('kuantitas'))
+    # )['total'] or 0
+    data_nilai = [headers_nilai]
+    # kolom_nilai = [len(headers_nilai)]
+
+    
+    # for obj in rpcard_to_print:
+        
+    #     data_row = [
+    #         obj.reportcard.student.id_number,
+    #         str(obj.reportcard.student),
+            
+    #     ]
+    #     data_nilai.append(data_row)
+    #     data_row = [
+    #         obj.final_score,
+    #     ]
+    #     kolom_nilai.append(data_row)
+
+    student_report_cards = ReportcardGrade.objects.all()
+
+    for rpc in student_report_cards:
+        student = rpc.reportcard.student
+        
+        # Start the row with Student Info
+        row = [
+            student.id_number, 
+            str(student)
+        ]
+
+        # single_score = getattr(rpc, 'final_score')
+        single_score = getattr(rpc, 'final_score')
+
+        # 4. FILL THE ROW (MATCHING HEADERS)
+        # Loop through the *Subjects* defined in step 1 to maintain column order
+        for sub in subjects:
+            row.append(single_score)
+
+        # Append the fully constructed row to the table data
+        data_nilai.append(row)
+
+    table_aktivitas = Table(data_nilai, repeatRows=1)
+    table_aktivitas.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, '#000000'),
+        ('BACKGROUND', (0,0), (-1,0), '#eeeeee'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman')
+    ]))
+    flowables.append(akt_text)
+    flowables.append(table_aktivitas)
+
+
+    doc.build(flowables)
+    buf.seek(0)
+    return FileResponse(buf, as_attachment=True, filename=filename)
+
+
+def report_card_nonslick(request):
+# 1. SETUP: Define the context (Year, Period, etc.)
+    # You might get these from request.GET or defaults
+    current_year = AcademicYear.objects.first() 
+    current_period = LearningPeriod.objects.filter(academic_year=current_year).first()
+
+    # 2. COLUMNS: Get all subjects ordered consistently
+    subjects = Subject.objects.all().order_by('id')
+
+    # 3. ROWS: Get the students you want to display
+    # (e.g., filtered by a specific class if needed)
+    students = Student.objects.filter(is_active=True).select_related('registration_data')
+
+    # 4. DATA: Fetch ALL relevant grades in one query
+    # We filter by the specific period to avoid mixing Mid/Final grades
+    grades = ReportcardGrade.objects.filter(
+        reportcard__period=current_period,
+        reportcard__student__in=students
+    ).select_related('reportcard', 'subject')
+
+    # 5. MAP: Create a lookup dictionary for fast access
+    # Key = (student_id, subject_id) -> Value = final_score
+    grade_map = {}
+    for g in grades:
+        grade_map[(g.reportcard.student_id)] = g.final_score
+
+    # 6. PIVOT: Build the final list for the template
+    report_data = []
+    for student in students:
+        # Create a list of scores that matches the 'subjects' order exactly
+        student_scores = []
+        for subj in subjects:
+            # Get score from map, default to 0 if not found
+            score = grade_map.get((student.id), 0)
+            student_scores.append(score)
+
+        report_data.append({
+            'id_number': student.id_number,
+            'first_name': student.registration_data.first_name,
+            'last_name': student.registration_data.last_name,
+            'scores': student_scores, # This list is perfectly aligned with table headers
+        })
+
+    context = {
+        'subjects': subjects,
+        'student_rows': report_data,
+        'current_period': current_period,
+    }
+    return render(request, 'partials/gradebook/report_card_nonslick.html', context)
+
 
