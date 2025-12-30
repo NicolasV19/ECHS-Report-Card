@@ -102,7 +102,7 @@
                 </div>
             </a>
                 <div class="navbar-center max-sm:hidden">
-                <a href="admission/" class="btn btn-ghost text-xl">Admission</a>
+                <a href="{% url 'adm-index' %}" class="btn btn-ghost text-xl">Admission</a>
                     {% comment %} <img src="{% static 'images/admission.png' %}" width="600" height="400"> {% endcomment %}
                 </div>
                 <div class="navbar-center max-sm:hidden">
@@ -248,6 +248,18 @@
                                 <a class=""
                                    href="{% url 'report-card' %}">
                                     Teacher's Notes
+                                </a>
+                            </li>
+                            <li class="model-passinggrade">
+                                <a class=""
+                                   href="{% url 'reportcard-summary' %}">
+                                    Report Card Grades
+                                </a>
+                            </li>
+                                                        <li class="model-passinggrade">
+                                <a class=""
+                                   href="{% url 'reportcard-nonslick' %}">
+                                    Report Card Grades v2
                                 </a>
                             </li>
                         </ul>
