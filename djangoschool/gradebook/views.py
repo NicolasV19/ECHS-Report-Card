@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher, ReportCardFilterForm
+from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher, ReportCardFilterForm, RequestLogForm
 from .models import *
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min
@@ -17,10 +17,14 @@ from reportlab.graphics.shapes import Drawing, Line
 from slick_reporting.views import ReportView, SlickReportView
 from slick_reporting.fields import ComputationField
 import io
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 
+@login_required
 def gb_index(request):
     return render(request, "partials/gradebook/index.html")
 
+@login_required
 def get_courses(request):
     subject_id = request.GET.get('subject_id')
     if subject_id:
@@ -34,6 +38,7 @@ def teacher_list(request):
 def course_list(request):
     return HttpResponse("pass")
 
+@login_required
 def grade_entry(request):
     entry = GradeEntry.objects.get(pk=3)
     form = GradeEntryForm(instance=entry)
@@ -57,7 +62,9 @@ def attendance(request):
         
         if form.is_valid():
             form.save()
-            
+    
+    if not hasattr(request.user, 'teacher'):
+        return redirect('gb-index')
             
     form = AttendanceForm(user=request.user)
     # teach_form = TeacherForm()
@@ -70,10 +77,11 @@ def attendance(request):
         'form': form,
         # 'classes': filtered_students
     }
+
     return render(request, 'partials/gradebook/attendance.html', context)
 
 
-class GradeEntryForm(SessionWizardView):
+class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
     # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
     template_name = "partials/gradebook/grade_entry.html"
     
@@ -585,7 +593,7 @@ def midterm_report_pdf(request, student_id=None):
     return FileResponse(buf, as_attachment=True, filename=filename)
 
 
-class ReportCardForm(SessionWizardView):
+class ReportCardForm(LoginRequiredMixin, SessionWizardView):
     # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
     template_name = "partials/gradebook/report_card.html"
     
@@ -738,6 +746,18 @@ class ReportCardForm(SessionWizardView):
             ReportcardGrade.objects.bulk_create(details_to_create)
             
         return render(self.request, "partials/gradebook/finished_screen_teachercomm.html")
+    
+
+def get_teachers(request):
+    period_id = request.GET.get('0-period') or request.GET.get('period')
+    
+    if period_id:
+        teachers = Teacher.objects.all()
+    else:
+        teachers = Teacher.objects.none()
+    
+    # Use 'items' or 'teachers' consistently with your partial template
+    return render(request, "partials/gradebook/gradeentry_partials/teacher.html", {'teachers': teachers})
 
 def get_courses(request):
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
@@ -796,79 +816,132 @@ def get_courses_ge(request):
     return render(request, "partials/gradebook/course_list.html", context)
 
 
-class ReportCardGradeSummary(ReportView):
+def get_assignment_types(request):
+    course_id = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
+
+    if course_id:
+        assignment_types = AssignmentType.objects.all()
+    else:
+        assignment_types = AssignmentType.objects.none()
+
+    return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", {'assignment_types': assignment_types})
+
+
+# biar short name subject keliatan
+# kalau pakai cara ini berarti ComputationField yg biasanya dipake di ReportView
+# diambil alih manual pake yg ini
+class ScoreField(ComputationField):
+    # nama bisa apa aja (INI PENTING, HARUS ADA)
+    name = "scorecolumn"
+    # metode penghitungan (Sum, Avg, Count, dll)
+    calculation_method = Sum
+    # field yg mana yg mau dihitung
+    calculation_field = "final_score"
+    # nama output / nama non-internal (mau ditampilin sebagai apa)
+    verbose_name = "Score"  # Default fallback
+    # mau ditotalin apa kgk
+    is_summable = False
+
+    @classmethod # ----> msh blm ngerti ini buat apaan
+    def get_crosstab_field_verbose_name(cls, model, id):
+        """
+        This runs for EVERY dynamic column.
+        model: The model class of the crosstab field (e.g., Subject)
+        id: The ID of the specific item (e.g., Subject ID 1)
+        """
+        # If the ID is invalid (e.g. remainder column), return generic name
+
+        # Fetch the subject name directly
+        # Note: 'model' here is automatically passed as the Subject model class
+        subject = Subject.objects.get(pk=id)
+            # Use short_name if available, else subject_name
+        return subject.short_name
+
+
+
+
+class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     # template_name = "partials/gradebook/report_summary.html"
 
-    # def get_columns(self):
-    #     columns = [
-    #         "reportcard__student__registration_data__first_name",
-    #     ]
-    #     subjects = Subject.objects.all()
-    #     for subject in subjects:
-    #         columns.append(
-    #             ComputationField.create(
-    #                 Sum, "final_score", 
-    #                 name=f"subject_{subject.id}_score", 
-    #                 verbose_name=subject.subject_name, 
-    #                 is_summable=True
-    #             )
-    #         )
-    #     return columns
 
+    report_title = "Report Card Ledger"
+
+    # model yg mau dipake
     report_model = ReportcardGrade
 
-    date_field = "reportcard__period__date_end"
+    # form utk filtering (dari forms.py)
+    form_class = RequestLogForm
+
+    # date_field = "reportcard__period__date_end"
     
+    # di grup dari apa
+    # NOTE: hanya value dari ini saja yg akan keliatan di kolom, gtau knp
     group_by = "reportcard__student__registration_data__first_name"
 
-    subjects = Subject.objects.all()
-
-    # form_class = ReportCardFilterForm
-
+    # sediain header yg mau ditampilin apa aja
     columns = [
-        # 2. Ensure this matches the group_by field to display the text label
-        "reportcard__student__id_number", 
-        "reportcard__student__registration_data__first_name", 
-        "reportcard__student__registration_data__last_name"
+        "reportcard__student__id_number",
+        "reportcard__student__registration_data__first_name",
+        "reportcard__student__registration_data__last_name",
     ]
 
-    
-    for subject in subjects:
-        columns.append(
-            ComputationField.create(
-                Sum, "final_score",  # Aggregates (sums) the final_score for each student-subject
-                name=f"subject_{subject.id}_score", 
-                verbose_name=subject.short_name,  # Displays the subject name as the column header
-                is_summable=False
-            )
-        )
+    # 2. Crosstab 
+    # filtering berdasarkan field apa
+    crosstab_field = "subject"
+    # isi kolom
+    crosstab_columns = [ScoreField]
+    # total (utk skrg ga ada ngapa2in ini var)
+    crosstab_compute_remainder = False 
 
-    # columns.append(
+    # 3. What goes inside the cells? (The Score)
+    # crosstab_columns = [
     #     ComputationField.create(
-    #         Sum, "final_score",  # Total final_score across all subjects for each student
-    #         name="total_score", 
-    #         verbose_name="Total Score", 
+    #         Sum, 
+    #         "final_score", 
+    #         verbose_name="Score", 
     #         is_summable=False
     #     )
-    # )
-
-    # crosstab_field = "subject_id"
-
-    # computation_fields = [
-    #     ComputationField.create(
-    #         Sum, "final_score", name="final_score", verbose_name="Final Score", is_summable=True
-    #     )
     # ]
 
-    # crosstab_ids = ["Mathematics", "Biology", "Geography", "Chemistry"]  # Example subject names
-    # crosstab_computer_remainder = True
-    # crosstab_columns = [
-    #         ComputationField.create(
-    #         Count, "subject", name="final_score", verbose_name="Final Score", is_summable=True,
-    #     )
-    # ]
-    
-    # crosstab_ids = Subject.objects.values_list('subject_name', flat=True)
+
+
+    # logic filter dari forms.py diulangi lagi disini
+    def get_crosstab_ids(self):
+        """
+        Determine which Subjects to show as columns.
+        """
+        # Get filters from the request
+        ay_id = self.request.GET.get('academic_year')
+        period_id = self.request.GET.get('period')
+        # Checkbox often comes as 'on' or 'true' or just present
+        is_mid = self.request.GET.get('is_mid') 
+
+        # --- SCENARIO 1: NOT FILTERED (Default View) ---
+        if not ay_id and not period_id:
+            # Return just the first 5 subjects as placeholders
+            return [s.pk for s in Subject.objects.order_by('id')[:5]]
+
+        # --- SCENARIO 2: FILTERED (User selected Year/Period) ---
+        # We start with all grades
+        qs = ReportcardGrade.objects.all()
+
+        # Apply the same filters that the report body uses
+        if ay_id:
+            qs = qs.filter(reportcard__academic_year_id=ay_id)
+        if period_id:
+            qs = qs.filter(reportcard__period_id=period_id)
+        if is_mid:
+            qs = qs.filter(reportcard__is_mid=True)
+
+        # distinct() ensures we don't get duplicate IDs
+        # values_list('subject_id', flat=True) returns a list of IDs like [1, 2, 5]
+        subject_ids = qs.values_list('subject_id', flat=True).distinct().order_by('subject_id')
+        
+        return list(subject_ids)
+
+    def get_crosstab_compute_remainder(self):
+        return False
+
 
 
 
@@ -949,10 +1022,11 @@ class ReportCardGradeSummary(ReportView):
     export_csv.css_class = "btn btn-success"
 
     filters = [
-        "final_score",
+        "reportcard__student__id_number", 
+        "reportcard__student__registration_data__first_name", 
+        "reportcard__student__registration_data__last_name"
     ]
 
-    report_title = "Student Report Card Crosstab"
 
 def report_card_summary(request):
     report = ReportCardGradeSummary()

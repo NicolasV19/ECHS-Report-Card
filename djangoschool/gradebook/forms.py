@@ -1,8 +1,9 @@
 from django.shortcuts import get_object_or_404
 from django import forms
+from datetime import datetime
 from slick_reporting.forms import BaseReportForm
 from django.forms import modelform_factory, formset_factory, modelformset_factory, BaseFormSet
-from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject, Course, LearningPeriod, AcademicYear
+from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject, Course, LearningPeriod, AcademicYear, AssignmentType
 from admission.models import Class, ClassMember, Teacher, AbstractClass, Student, SchoolLevel
 
 # Define grade choices
@@ -18,88 +19,91 @@ FINAL_GRADE_CHOICES = [
 class GradeEntryForm(forms.ModelForm):
     class Meta:
         model = GradeEntry
-        fields = ["academic_year", "period", "teacher", "subject", 
-                  "course", "assignment_type"]
+        fields = ["academic_year", "period", "teacher", "subject", "course", "assignment_type"]
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        acayear_nonidleval = self.initial.get('academic_year') or self.data.get('academic_year')
+        
+        # 1. FIX: Must check for the wizard prefix '0-'
+        data = self.data
+        initial = self.initial
+        
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        period = data.get('0-period') or initial.get('period')
+        teacher = data.get('0-teacher') or initial.get('teacher')
+        subject = data.get('0-subject') or initial.get('subject')
+        course = data.get('0-course') or initial.get('course')
+        assignment_type = data.get('0-assignment_type') or initial.get('assignment_type')
+        # 2. Logic: Period depends on Academic Year
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
 
+        # 3. Logic: Teacher depends on Period
+        if period:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        else:
+            self.fields['teacher'].queryset = Teacher.objects.none()
+
+        # 4. Logic: Subject depends on Teacher
+        if teacher:
+            # Using your existing filtering logic
+            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher).distinct()
+        else:
+            self.fields['subject'].queryset = Subject.objects.none()
+
+        if subject:
+            # Using your existing filtering logic
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher).distinct()
+        else:
+            self.fields['course'].queryset = Course.objects.none()
+
+        # if course:
+        #     self.fields['assignment_type'].queryset = AssignmentType.objects.all()
+        # else:
+        #     self.fields['assignment_type'].queryset = AssignmentType.objects.none()
+
+        # --- HTMX Attributes ---
+        # Update Academic Year to trigger Period update
         self.fields['academic_year'].widget.attrs.update({
+            'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-period-ge/',
             'hx-trigger': 'change',
-            'hx-target': '#period-select-ge',
+            'hx-target': '#period-select-ge', # Make sure this matches the ID below
             'hx-swap': 'innerHTML',
-            'hx-include': '[name="0-period"]'
         })
-        self.fields['period'].widget.attrs['id'] = 'period-select-ge'
-        if acayear_nonidleval:
-            self.fields['period'].queryset = LearningPeriod.objects.none()
-            self.fields['period'].disabled = True
-        else:
-            self.fields['period'].queryset = LearningPeriod.objects.all()
 
-        
+        # Update Period to trigger Teacher update
+        self.fields['period'].widget.attrs.update({
+            'id': 'period-select-ge', # Set ID for target
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-teachers-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#teacher-select-ge',
+            'hx-swap': 'innerHTML',
+        })
+
+        # Set ID for Teacher field so it can be targeted
         self.fields['teacher'].widget.attrs.update({
+            'id': 'teacher-select-ge',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-subjects-ge/',
             'hx-trigger': 'change',
             'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '[name="0-subject"]'
         })
-        period_nonidleval = self.initial.get('period') or self.data.get('period')
-        if period_nonidleval:
-            self.fields['teacher'].queryset = Teacher.objects.none()
-            self.fields['teacher'].disabled = False
-        else:
-            self.fields['teacher'].queryset = Teacher.objects.all()
+
         self.fields['subject'].widget.attrs.update({
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses/',
+            'hx-get': '/gradebook/get-courses-ge/',
             'hx-trigger': 'change',
             'hx-target': '#course-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '[name="0-course"]'
         })
+
         self.fields['course'].widget.attrs['id'] = 'course-select-ge'
-        self.fields['academic_year'].widget.attrs.update({
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-period-ge/',
-            'hx-trigger': 'change',
-            'hx-target': '#period-select',
-            'hx-swap': 'innerHTML',
-            'hx-include': '[name="1-period"]'
-            })
-        self.fields['period'].widget.attrs.update({
-            'class': 'custom-select mb-4',
-            'id': 'period-select'
-            })
-        # self.fields['student'].widget.attrs.update({
-        #     'class': 'custom-select mb-4',
-        #     'hx-get': '/gradebook/get-courses/',
-        #     'hx-trigger': 'change',
-        #     'hx-target': '#course-select',
-        #     'hx-swap': 'innerHTML',
-        #     'hx-include': '[name="1-course"]'
-        #     })
-        # self.fields['attendance_type'].widget.attrs.update({
-        #     'class': 'custom-select mb-4',
-        #     'hx-get': '/gradebook/get-courses/',
-        #     'hx-trigger': 'change',
-        #     'hx-target': '#course-select',
-        #     'hx-swap': 'innerHTML',
-        #     'hx-include': '[name="1-course"]'
-        #     })
-        # self.fields['notes'].widget.attrs.update({
-        #     'class': 'custom-select mb-4',
-        #     'hx-get': '/gradebook/get-courses/',
-        #     'hx-trigger': 'change',
-        #     'hx-target': '#course-select',
-        #     'hx-swap': 'innerHTML',
-        #     'hx-include': '[name="1-course"]'
-        #     })
         
 class ReportCardComment(forms.ModelForm):
     class Meta:
@@ -452,3 +456,74 @@ class ReportCardFilterForm(BaseReportForm):
             'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
         }
         exclude = ('reportcard',)
+
+class RequestLogForm(BaseReportForm, forms.Form):
+
+    start_date = forms.DateField(
+        required=False,
+        label="Start Date",
+        widget=forms.DateInput(attrs={"type": "hidden"}),
+        initial=datetime.now
+    )
+    end_date = forms.DateField(required=False, label="End Date", widget=forms.DateInput({"type": "hidden"}), initial=datetime.now)
+
+    academic_year = forms.ModelChoiceField(
+        queryset = AcademicYear.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    period = forms.ModelChoiceField(
+        queryset = LearningPeriod.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput()
+    )
+
+
+
+    def __init__(self, *args, **kwargs):
+        # super(RequestLogForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+    #     # provide initial values and ay needed customization
+        self.fields["start_date"].initial = datetime.date
+        self.fields["end_date"].initial = datetime.date
+
+        # self.fields["start_date"].widget.is_hidden = True
+
+
+
+    def get_filters(self):
+        academic_year = self.cleaned_data.get("academic_year")
+        period = self.cleaned_data.get("period")
+        is_mid = self.cleaned_data.get("is_mid")
+        # return the filters to be used in the report
+        # Note: the use of Q filters and kwargs filters
+        filters = {}
+        q_filters = []
+        if not academic_year and not period:
+            filters['id'] = -1 # Impossible ID, results in empty table
+            return q_filters, filters
+        
+        if academic_year:
+            filters["reportcard__academic_year"] = academic_year
+            
+        if period:
+            filters["reportcard__period"] = period
+
+        # For Booleans, usually we only filter if the checkbox is checked, 
+        # or you can force the filter regardless:
+        if is_mid is not None:
+            filters["reportcard__is_mid"] = is_mid
+
+        return q_filters, filters
+
+    def get_start_date(self):
+        return self.cleaned_data["start_date"]
+
+    def get_end_date(self):
+        return self.cleaned_data["end_date"]

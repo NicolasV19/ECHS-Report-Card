@@ -12,6 +12,7 @@ urlpatterns = [
     path("midterm_pdf", views.midterm_report, name="midterm_report"),
     path("midterm_pdf_real/<int:student_id>/", views.midterm_report_pdf, name="midterm_report_pdf"),
     path("report-card", views.ReportCardForm.as_view(), name="report-card"),
+    path('get-teachers-ge/',views.get_teachers, name='get_teachers-ge'),
     path('get-courses/', views.get_courses, name='get_courses'),
     path('get-period-ge/', views.get_period_ge, name='get_period_ge'),
     path('get-courses-ge/', views.get_courses, name='get_courses_ge'),
