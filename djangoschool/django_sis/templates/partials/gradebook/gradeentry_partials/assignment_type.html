@@ -1,4 +1,4 @@
 <option value="">Select Assignment Type</option>
 {% for type in as_types %}
-    <option value="{{ type.id }}" {% if selected_course and course.id|stringformat:"s" == selected_course %}selected{% endif %}>{{ course }}</option>
+    <option value="{{ type.id }}" {% if selected_course and course.id|stringformat:"s" == selected_course %}selected{% endif %}>{{ type }}</option>
 {% endfor %}
