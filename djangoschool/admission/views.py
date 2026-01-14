@@ -1,8 +1,10 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
 from .forms import PersonalInfoForm, ContactInfoForm, ParentInfoForm
-from .models import Registration, AbstractPerson
+from .models import *
+from .charts import months, colorPrimary, colorSuccess, colorDanger, generate_color_palette, get_year_dict
+from django.db.models.functions import ExtractYear, ExtractMonth
 
 # Create your views here.
 def index(request):
@@ -83,3 +85,38 @@ class AdmissionView(SessionWizardView):
 
         
         return render(self.request, "partials/admission/finished_screen.html")
+    
+
+from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
+from formtools.wizard.views import SessionWizardView
+from .forms import PersonalInfoForm, ContactInfoForm, ParentInfoForm
+from .models import *
+from .charts import months, colorPrimary, colorSuccess, colorDanger, generate_color_palette, get_year_dict
+from django.db.models.functions import ExtractYear, ExtractMonth
+from django.db.models import Count, Sum, Avg  # Add this import
+
+# ...existing code...
+
+def get_filter_options(request):
+    options = AcademicYear.objects.all().order_by('-year').values_list('year', flat=True)
+
+    return JsonResponse({
+        "options": list(options)
+    })
+
+# Add this new view for student counts per grade level
+def get_student_counts(request):
+    year = request.GET.get('year')
+    queryset = ClassMember.objects.filter(is_active=True)
+    if year:
+        queryset = queryset.filter(kelas__academic_year__year=year, kelas__is_home_class=True)
+    counts = queryset.values('kelas__name').annotate(count=Count('student')).order_by('kelas__name')
+    
+    labels = [item['kelas__name'] for item in counts]
+    data = [item['count'] for item in counts]
+    
+    return JsonResponse({
+        'labels': labels,
+        'data': data,
+    })
