@@ -75,6 +75,7 @@
 </head>
 
 <body hx-headers='{"x-csrftoken": "{{ csrf_token }}"}' class="bg-base-200 font-cantarell ">
+{% csrf_token %}
     
         <!-- Main content -->
         <div id="content"
@@ -101,20 +102,18 @@
                     <img loading="lazy" class="max-h-20 p-2 m-auto max-w-32" src="/static_files/admin/img/logo_echs.jpeg" />
                 </div>
             </a>
-                <div class="navbar-center max-sm:hidden">
+                {% comment %} <div class="navbar-center max-sm:hidden">
                 <a href="{% url 'adm-index' %}" class="btn btn-ghost text-xl">Admission</a>
-                    {% comment %} <img src="{% static 'images/admission.png' %}" width="600" height="400"> {% endcomment %}
-                </div>
+                </div> {% endcomment %}
                 <div class="navbar-center max-sm:hidden">
                     <a class="btn btn-ghost  text-xl" href="{% url 'gb-index' %}">
                         Gradebook
                     </a>
                 </div>
                 <!--- nanti kasih if --->
-                <div class="navbar-center max-sm:hidden">
+                {% comment %} <div class="navbar-center max-sm:hidden">
                 <a href="{% url 'admin:index' %}" class="btn btn-ghost text-xl">SIS Admin</a>
-                    {% comment %} <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400"> {% endcomment %}
-                </div>
+                </div> {% endcomment %}
                 <div class="navbar-end">
                     <div class="dropdown dropdown-bottom dropdown-end">
                         <div tabindex="0" role="button" class="btn btn-ghost btn-sm m-1">Theme
@@ -234,7 +233,7 @@
                         <ul>
                             <li class="model-weighting">
                                 <a class=""
-                                   href="{% url 'grade-entry' %}">
+                                   href="{% url 'grade-entry-table' %}">
                                     Grade Entry
                                 </a>
                             </li>
@@ -246,22 +245,16 @@
                             </li>
                             <li class="model-passinggrade">
                                 <a class=""
-                                   href="{% url 'report-card' %}">
+                                   href="{% url 'report-card-table' %}">
                                     Teacher's Notes
                                 </a>
                             </li>
-                            <li class="model-passinggrade">
+                            {% comment %} <li class="model-passinggrade">
                                 <a class=""
-                                   href="{% url 'reportcard-summary' %}">
-                                    Report Card Grades
+                                   href="{% url 'grade-entry-table' %}">
+                                    GE Table
                                 </a>
-                            </li>
-                                                        <li class="model-passinggrade">
-                                <a class=""
-                                   href="{% url 'reportcard-nonslick' %}">
-                                    Report Card Grades v2
-                                </a>
-                            </li>
+                            </li> {% endcomment %}
                         </ul>
                     </details>
                 </li>
