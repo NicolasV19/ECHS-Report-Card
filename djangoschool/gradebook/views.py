@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher, ReportCardFilterForm, RequestLogForm
+from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailItemForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher, ReportCardFilterForm, RequestLogForm
 from .models import *
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min
@@ -19,6 +19,11 @@ from slick_reporting.fields import ComputationField
 import io
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.forms import modelformset_factory, formset_factory
+from django.core.paginator import Paginator
+from django import forms, template
+
+register = template.Library()
 
 @login_required
 def gb_index(request):
@@ -48,6 +53,7 @@ def grade_entry(request):
 def get_period(request):
     pass
 
+@login_required
 def attendance(request):
     # cannot unpack non-iterable ForwardManyToOneDescriptor object
     # current_teacher = get_object_or_404(Teacher, user=request.user)
@@ -63,8 +69,8 @@ def attendance(request):
         if form.is_valid():
             form.save()
     
-    if not hasattr(request.user, 'teacher'):
-        return redirect('gb-index')
+    # if not hasattr(request.user, 'teacher'):
+    #     return redirect('gb-index')
             
     form = AttendanceForm(user=request.user)
     # teach_form = TeacherForm()
@@ -79,6 +85,35 @@ def attendance(request):
     }
 
     return render(request, 'partials/gradebook/attendance.html', context)
+
+@register.inclusion_tag('partials/gradebook/attendance_list.html', takes_context=True)
+def attendance_list(request):
+    attendance = StudentAttendance.objects.all()
+
+    pnation = Paginator(StudentAttendance.objects.all(), 15)  # Show 10 aktivitas per page
+    page = request.GET.get('page')
+    pnation_attend = pnation.get_page(page)
+
+    context = {
+        'attendance': attendance,
+        'pnation_attend': pnation_attend
+    }
+
+    return render(request, 'partials/gradebook/attendance_list.html', context)
+
+def attendance_list_admin(request):
+    attendance = StudentAttendance.objects.all()
+
+    pnation = Paginator(StudentAttendance.objects.all(), 15)  # Show 10 aktivitas per page
+    page = request.GET.get('page')
+    pnation_attend = pnation.get_page(page)
+
+    context = {
+        'attendance': attendance,
+        'pnation_attend': pnation_attend
+    }
+
+    return render(request, 'admin/attendance_list_homepage.html', context)
 
 
 class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
@@ -1028,272 +1063,196 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     ]
 
 
-def report_card_summary(request):
-    report = ReportCardGradeSummary()
-    report.request = request
-    report.GET = request.GET
-    return render(request, 'partials/gradebook/report_summary.html', {'report': report})
 
-def report_card_summary_pdf_rplab(request):
-    buf = io.BytesIO()
-    # student_id = Student.id
+@login_required
+def ge_table(request):
+    ge = GradeEntry.objects.all()
+    ah = AssignmentHead.objects.all()
+    ad = AssignmentDetail.objects.all()
 
-    filename = f"Report_Card.pdf"
-
-
-    doc = SimpleDocTemplate(buf, pagesize=(900, 600))
-    flowables = []
-
-    styles = getSampleStyleSheet()
-
-    center_style = ParagraphStyle(
-        'Center',
-        parent=styles['Normal'],
-        alignment=TA_CENTER,
-        fontName='Times-Roman'
-)
-    
-    center_style_small = ParagraphStyle(
-        'Center',
-        parent=styles['Normal'],
-        alignment=TA_CENTER,
-        fontSize=8,
-        fontName='Times-Roman'
-)
-
-    title_style = ParagraphStyle(
-        'TitleStyle',             # A name for the style
-        parent=styles['Heading3'],  # Base it on the default "Heading1"
-        fontSize=20,                # "Really big" size
-        alignment=TA_CENTER,        # Center the text
-        fontName='Times-Bold'   # Make sure it's bold
-    )
-
-    heading_style = ParagraphStyle(
-        'HeadingStyle',             # A name for the style
-        parent=styles['Heading3'],  # Base it on the default "Heading1"              # "Really big" size        # Center the text
-        fontName='Times-Bold'   # Make sure it's bold
-    )
-
-    times_nr = ParagraphStyle(
-        'TimesNewRoman',
-        fontName='Times-Bold'
-    )
-
-    kopsurat_nama_institusi = ParagraphStyle(
-        'KopSuratNamaInstitusi',
-        parent=styles['Normal'],
-        fontSize=24,
-        leading=24,
-        alignment=TA_CENTER,
-        fontName='Times-Roman',
-        textColor="#5A0303"
-    )
-    available_width = doc.width
-
-    separator = Drawing(available_width, 2)
-
-    line = Line(
-        x1=1, y1=1,
-        x2=available_width, y2=1,
-        strokeColor=colors.HexColor("#510000"),
-        strokeWidth=1
-    )
-
-    separator.add(line)
-    
-    # # kopsurat versi gambar
-    # kop_surat = os.path.join(settings.BASE_DIR, 'media/ekupoint/kopsurat.jpg')
-
-    # # logo STTE, buat rekreasi kopsurat
-    # logo = os.path.join(settings.BASE_DIR, 'media/ekupoint/logo-stte-jakarta-bwt-kopsurat.png')
-
-    # setting gambar
-    # kopsur = Image(kop_surat)
-    # logo_stte = Image(logo, width=120, height=90)
-    
-    # kopsurat yang diambil dari dokumen2 lain; kalo mau dipake tinggal di uncomment
-    # flowables.append(kopsur)
-
-    header_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
-    akt_text_raw = "Aktivitas Mahasiswa:"
-    pel_text_raw = "Pelanggaran Mahasiswa:"
-    akt_text = Paragraph(akt_text_raw, times_nr)
-    pel_text = Paragraph(pel_text_raw, times_nr)
-    # header_2 = f"Nama: {user_obj.get_full_name()}"
-    # header_3 = f"NIM: {user_obj.nim}"
-    # header_4 = f"Prodi: {user_obj.prodi}"
-    # header_5 = f"Angkatan: {user_obj.angkatan}"
-    header = Paragraph(header_text, title_style)
-    # header_dua = Paragraph(header_2)
-    # header_tiga = Paragraph(header_3)
-    # header_empat = Paragraph(header_4)
-    # header_lima = Paragraph(header_5)
-
-    # data2 rekreasi kop surat
-    # kop_left_content = [
-    #     logo_stte,
-    # ]
-
-    # kop_right_content = [
-    #     Paragraph("SEKOLAH TINGGI TEOLOGI EKUMENE JAKARTA", kopsurat_nama_institusi),
-    #     Spacer(1, 4),
-    #     Paragraph("Mall Artha Gading Lantai 3, Jl. Artha Gading Sel. No. 3, Kelapa Gading, Jakarta Utara, Indonesia 14240", center_style_small),
-    #     Paragraph("+628197577740      institusi.stte@sttekumene.ac.id      sttekumene.ac.id", center_style_small),
-    # ]
-
-    # kopsurat_data_1 = [
-    #     [kop_right_content],
-    # ]
-
-    # kopsurat_table = Table(kopsurat_data_1, colWidths=[100, 400])
-
-    # kopsurat_table.setStyle(TableStyle([
-    #         ('GRID', (0, 0), (-1, -1), 0.5, "#FFFFFFFF"), # No grid
-    #         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    #         ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Align labels (col 0) to the left
-    #         ('ALIGN', (1, 0), (1, -1), 'LEFT'), # Align values (col 1) to the left
-    #         ('FONTNAME', (0, 0), (0, -1), 'Times-Roman') # Make labels bold
-    #     ]))
-    # # rekreasi kop surat
-    # flowables.append(kopsurat_table)
-    # flowables.append(separator)
-    # flowables.append(Spacer(1, 24))
-    
-    # judul ("EKUPOINT REPORT")
-    flowables.append(header)
-    # flowables.append(Spacer(1, 12))
-    # flowables.append(header_dua)
-    flowables.append(Spacer(1, 24))
-
-    # access student id dari: ReportCardgrade > StudentReportcard > Student
-    stdnt_rpc = StudentReportcard.objects.all()
-    rpcgrade = ReportcardGrade.objects.all()
-    rpcard_to_print = ReportcardGrade.objects.all()
-
-    # Aktivitas table
-    styles = getSampleStyleSheet()
-    subjects = Subject.objects.all()
-    small = ParagraphStyle('small', parent=styles['Normal'], fontSize=8, leading=10, fontName='Times-Roman', splitLongWords=1, wordWrap='LTR')
-    # headers_aktivitas = ["Aktivitas", "Jenis", "Lingkup", "Poin", "Kuantitas", "Keterangan", "File", "Status", "Tanggal"]
-    headers_nilai = ["NISN", "Nama Siswa"]
-
-    for subs in subjects:
-        subs.subject_name
-        headers_nilai.append(subs.subject_name)
-    # aktivitas_total = contactdata.aggregate(
-    #     total=Sum(F('aturan_merit__poin') * F('kuantitas'))
-    # )['total'] or 0
-    
-
-    # pelanggaran_total = pelanggaran.aggregate(
-    #     total=Sum(F('aturan_demerit__poin') * F('kuantitas'))
-    # )['total'] or 0
-    data_nilai = [headers_nilai]
-    # kolom_nilai = [len(headers_nilai)]
-
-    
-    # for obj in rpcard_to_print:
-        
-    #     data_row = [
-    #         obj.reportcard.student.id_number,
-    #         str(obj.reportcard.student),
-            
-    #     ]
-    #     data_nilai.append(data_row)
-    #     data_row = [
-    #         obj.final_score,
-    #     ]
-    #     kolom_nilai.append(data_row)
-
-    student_report_cards = ReportcardGrade.objects.all()
-
-    for rpc in student_report_cards:
-        student = rpc.reportcard.student
-        
-        # Start the row with Student Info
-        row = [
-            student.id_number, 
-            str(student)
-        ]
-
-        # single_score = getattr(rpc, 'final_score')
-        single_score = getattr(rpc, 'final_score')
-
-        # 4. FILL THE ROW (MATCHING HEADERS)
-        # Loop through the *Subjects* defined in step 1 to maintain column order
-        for sub in subjects:
-            row.append(single_score)
-
-        # Append the fully constructed row to the table data
-        data_nilai.append(row)
-
-    table_aktivitas = Table(data_nilai, repeatRows=1)
-    table_aktivitas.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, '#000000'),
-        ('BACKGROUND', (0,0), (-1,0), '#eeeeee'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman')
-    ]))
-    flowables.append(akt_text)
-    flowables.append(table_aktivitas)
-
-
-    doc.build(flowables)
-    buf.seek(0)
-    return FileResponse(buf, as_attachment=True, filename=filename)
-
-
-def report_card_nonslick(request):
-# 1. SETUP: Define the context (Year, Period, etc.)
-    # You might get these from request.GET or defaults
-    current_year = AcademicYear.objects.first() 
-    current_period = LearningPeriod.objects.filter(academic_year=current_year).first()
-
-    # 2. COLUMNS: Get all subjects ordered consistently
-    subjects = Subject.objects.all().order_by('id')
-
-    # 3. ROWS: Get the students you want to display
-    # (e.g., filtered by a specific class if needed)
-    students = Student.objects.filter(is_active=True).select_related('registration_data')
-
-    # 4. DATA: Fetch ALL relevant grades in one query
-    # We filter by the specific period to avoid mixing Mid/Final grades
-    grades = ReportcardGrade.objects.filter(
-        reportcard__period=current_period,
-        reportcard__student__in=students
-    ).select_related('reportcard', 'subject')
-
-    # 5. MAP: Create a lookup dictionary for fast access
-    # Key = (student_id, subject_id) -> Value = final_score
-    grade_map = {}
-    for g in grades:
-        grade_map[(g.reportcard.student_id)] = g.final_score
-
-    # 6. PIVOT: Build the final list for the template
-    report_data = []
-    for student in students:
-        # Create a list of scores that matches the 'subjects' order exactly
-        student_scores = []
-        for subj in subjects:
-            # Get score from map, default to 0 if not found
-            score = grade_map.get((student.id), 0)
-            student_scores.append(score)
-
-        report_data.append({
-            'id_number': student.id_number,
-            'first_name': student.registration_data.first_name,
-            'last_name': student.registration_data.last_name,
-            'scores': student_scores, # This list is perfectly aligned with table headers
-        })
+    pnation = Paginator(AssignmentHead.objects.all(), 15)  # Show 10 aktivitas per page
+    page = request.GET.get('page')
+    pnation_ah = pnation.get_page(page)
 
     context = {
-        'subjects': subjects,
-        'student_rows': report_data,
-        'current_period': current_period,
+        'ge': ge,
+        'ah': ah,
+        'ad': ad,
+        'pnation_ah': pnation_ah
     }
-    return render(request, 'partials/gradebook/report_card_nonslick.html', context)
 
 
+
+    return render(request, 'partials/gradebook/grade_entry_table.html', context)
+
+
+from .models import AssignmentDetail, CourseMember
+
+
+
+# INGET YA ID ASSIGNMENTDETAIL != ID ASSIGNMENTHEAD PANTES DRTD NGACO MULU QUERYSETNYA
+@login_required
+def ge_edit(request, pk):
+    # 1. Get the reference detail to find the 'Head' assignment
+    # target_detail = get_object_or_404(AssignmentDetail, pk=pk)
+    parent_head = get_object_or_404(AssignmentHead, pk=pk)
+    current_course = parent_head.course
+
+    # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
+    # This fixes the issue where only 1 student shows up.
+    active_members = CourseMember.objects.filter(course=current_course, is_active=True)
+    
+    for member in active_members:
+        # Create a blank row (score=0) if it doesn't exist yet
+        AssignmentDetail.objects.get_or_create(
+            assignment_head=parent_head,
+            student=member.student,
+            defaults={'score': 0, 'is_active': True}
+        )
+
+    # print(f"Target Detail:  {target_detail}")
+    # print(f"Parent: {parent_head}")
+    # print(f"Course: {current_course}")
+
+    # 3. Create the Queryset containing ALL students for this assignment
+    # We order by student ID (or name if available) to keep the list stable
+    queryset = AssignmentDetail.objects.filter(
+        assignment_head=parent_head
+    ).order_by('student__id') 
+
+    # 4. Define the Formset
+    AssignmentFormSet = modelformset_factory(
+        AssignmentDetail,
+        fields=('score', 'na_reason', 'is_active'),
+        extra=0 # We don't want blank extra rows, we just want the students
+    )
+
+    if request.method == 'POST':
+        formset = AssignmentFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            return redirect('grade-entry-table') # Make sure this URL name is correct in urls.py
+    else:
+        formset = AssignmentFormSet(queryset=queryset)
+
+    return render(request, 'partials/gradebook/grade_entry_edit.html', {
+        'formset': formset,
+        'parent_head': parent_head,
+        'title': f'Edit Grades: {parent_head.topic}',
+    })
+
+def ge_del(request, pk):
+    ahead = get_object_or_404(AssignmentHead, pk=pk)
+    if request.method == 'POST':
+        ahead.delete()
+        return redirect('grade-entry-table')
+
+    # For a GET request, show the empty form
+    # form = PelanggaranForm()
+    # context = {
+    #     'form': form,
+    # }
+    return render(request, 'partials/gradebook/grade_entry_delconf.html')
+
+@login_required
+def tc_table(request):
+    src = StudentReportcard.objects.all()
+
+    pnation = Paginator(StudentReportcard.objects.all(), 15)  # Show 10 aktivitas per page
+    page = request.GET.get('page')
+    pnation_src = pnation.get_page(page)
+
+    context = {
+        'src': src,
+        'pnation_src': pnation_src
+    }
+
+    return render(request, 'partials/gradebook/report_card_table.html', context)
+
+@login_required
+def tc_edit(request, pk):
+    # 1. Get the reference detail to find the 'Head' assignment
+    # target_detail = get_object_or_404(AssignmentDetail, pk=pk)
+    parent_head = get_object_or_404(StudentReportcard, pk=pk)
+    # current_subject = parent_head.subject
+
+    # # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
+    # # This fixes the issue where only 1 student shows up.
+    # active_members = CourseMember.objects.filter(course=current_subject.id, is_active=True)
+    
+    # for member in active_members:
+    #     # Create a blank row (score=0) if it doesn't exist yet
+    #     ReportcardGrade.objects.get_or_create(
+    #         reportcard=parent_head,
+    #         student=member.student,
+    #         defaults={'score': 0, 'is_active': True}
+    #     )
+
+    # print(f"Target Detail:  {target_detail}")
+    # print(f"Parent: {parent_head}")
+    # print(f"Course: {current_course}")
+
+    # 3. Create the Queryset containing ALL students for this assignment
+    # We order by student ID (or name if available) to keep the list stable
+    queryset = ReportcardGrade.objects.filter(
+        reportcard=parent_head
+    )
+
+    # 4. Define the Formset
+    class OptionalGradeForm(forms.ModelForm):
+        class Meta:
+            model = ReportcardGrade
+            # Include all fields you plan to use in the factory
+            fields = ('subject', 'final_score', 'final_grade', 'teacher_notes')
+            widgets = {
+            'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+            'subject': forms.HiddenInput(),
+            'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
+            'final_grade': forms.Select(attrs={'class': 'form-select'}),
+            'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+        }
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Disable the "required" check for these specific fields
+            self.fields['subject'].required = False
+            self.fields['subject'].disabled = True
+            self.fields['final_grade'].required = False
+            self.fields['final_grade'].disabled = True
+            self.fields['final_score'].disabled = True
+
+    # --- 2. Pass the custom form to the factory ---
+    ReportCardGradeFormset = modelformset_factory(
+        ReportcardGrade,
+        form=OptionalGradeForm,  # <--- THIS IS THE KEY CHANGE
+        extra=0
+    )
+
+    if request.method == 'POST':
+        formset = ReportCardGradeFormset(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            return redirect('report-card-table') # Make sure this URL name is correct in urls.py
+        else:
+            print(formset.errors)
+    else:
+        formset = ReportCardGradeFormset(queryset=queryset)
+
+
+    return render(request, 'partials/gradebook/report_card_edit.html', {
+        'formset': formset,
+        'parent_head': parent_head
+    })
+
+def tc_del(request, pk):
+    src = get_object_or_404(StudentReportcard, pk=pk)
+    if request.method == 'POST':
+        src.delete()
+        return redirect('report-card-table')
+
+    # For a GET request, show the empty form
+    # form = PelanggaranForm()
+    # context = {
+    #     'form': form,
+    # }
+    return render(request, 'partials/gradebook/grade_entry_delconf.html')

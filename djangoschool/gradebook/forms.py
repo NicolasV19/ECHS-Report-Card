@@ -150,26 +150,31 @@ class AttendanceForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['student'].queryset = Student.objects.all()
         
-        # get current Teacher.user
-        current_teacher = Teacher.objects.get(user=user)
-        # filter Class table by current Teacher.user
-        teacher_classes = Class.objects.filter(teacher=current_teacher, is_home_class=True)
-        teacher_classes_nothomeroom = Class.objects.filter(teacher=current_teacher, is_home_class=False)
-            
-        # filter ClassMember by filtered Class in kelas
-        student_ids = ClassMember.objects.filter(
-            kelas__in=teacher_classes, 
-            is_active=True
-        ).values_list('student_id', flat=True)
-            
+        if user and hasattr(user, 'teacher'):
+                # get current Teacher.user
+            current_teacher = Teacher.objects.get(user=user)
+                
+                # filter Class table by current Teacher.user
+                # (You only need the classes relevant to filtering students)
+            teacher_classes = Class.objects.filter(teacher=current_teacher)
+                
+                # If the teacher has classes, filter the students
+            if teacher_classes.exists():
+                student_ids = ClassMember.objects.filter(
+                    kelas__in=teacher_classes, 
+                    is_active=True
+                ).values_list('student_id', flat=True)
+                    
+                self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
         
         # ganti queryset
         # self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
-        if teacher_classes:
-            self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
-        else:
-            self.fields['student'].queryset = Student.objects.all()
+        # if teacher_classes:
+        #     self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
+        # else:
+        #     self.fields['student'].queryset = Student.objects.all()
 
 
             
@@ -195,49 +200,80 @@ class AssignmentHeadForm(forms.ModelForm):
 
 # Form Step 3 (Detail per Siswa)
 class AssignmentDetailItemForm(forms.ModelForm):
-    # Field dummy hanya untuk tampilan
     student_name = forms.CharField(
         required=False, 
         widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
     )
 
-    # teacher_notes = forms.CharField(
-    #     widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
-    #     required=False
-    # )
-
     class Meta:
         model = AssignmentDetail
-        fields = ['student', 'score', 'is_active', 'na_reason']
+        # YOU MUST INCLUDE 'student' HERE
+        fields = ['student', 'score', 'is_active', 'na_reason', 'na_date']
         widgets = {
-            'student': forms.HiddenInput(), # ID siswa disembunyikan
+            'student': forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Jika ada data awal student, set nama siswanya untuk display
-        if self.initial.get('student'):
+
+        # 1. SETUP STUDENT NAME (Keep your existing logic)
+        student_obj = None
+        if self.instance and hasattr(self.instance, 'student'):
+            student_obj = self.instance.student
+        elif self.initial.get('student'):
             from admission.models import Student
             try:
-                s = Student.objects.get(pk=self.initial['student'])
-                self.fields['student_name'].initial = str(s)
+                student_obj = Student.objects.get(pk=self.initial['student'])
             except Student.DoesNotExist:
                 pass
+        
+        if student_obj:
+            self.fields['student_name'].initial = str(student_obj)
+            
+        # 2. DETERMINE IS_ACTIVE STATUS (The Fix)
+        # Default to True (active) unless we find otherwise
+        is_active_val = True 
 
+        if self.is_bound:
+            # === THIS IS THE MISSING PART ===
+            # If the user submitted data (clicked Save/Next), we MUST check the 
+            # checkbox state from the raw data, not the database/initials.
+            
+            # Get the full HTML name for this specific row (e.g., '2-0-is_active')
+            field_name = self.add_prefix('is_active')
+            
+            # In HTML, if a checkbox is unchecked, it sends NOTHING. 
+            # If it is checked, it sends the key.
+            # So, if the key is missing from data, is_active is False.
+            if self.data and field_name not in self.data:
+                is_active_val = False
+        else:
+            # If just loading the page for the first time
+            if self.instance and self.instance.pk is not None:
+                is_active_val = self.instance.is_active
+            elif 'is_active' in self.initial:
+                is_active_val = self.initial.get('is_active')
 
-        if self.instance and self.instance.pk:
-            try:
-                # You need to find the specific ReportcardGrade for this Student + Subject
-                # Note: You might need to filter by a specific 'active' ReportCard if you have multiple terms.
-                grade_entry = ReportcardGrade.objects.filter(
-                    reportcard__student=self.instance.student,
-                    subject=self.instance.assignment_head.subject
-                ).first()
-                
-                if grade_entry:
-                    self.fields['teacher_notes'].initial = grade_entry.teacher_notes
-            except (AttributeError, ReportcardGrade.DoesNotExist):
-                pass
+        # 3. APPLY READONLY/DISABLED BASED ON STATUS
+        if is_active_val:
+            # If Active: fields are Readonly (Greyed out)
+            self.fields['na_reason'].widget.attrs.update({
+                'readonly': 'readonly',
+                'style': 'background-color: #e9ecef; cursor: not-allowed;',
+                'placeholder': 'Not applicable'
+            })
+            self.fields['na_date'].widget.attrs.update({
+                'readonly': 'readonly',
+                'style': 'background-color: #e9ecef;'
+            })
+        else:
+            # If Inactive: fields are Editable
+            self.fields['na_reason'].widget.attrs.pop('readonly', None)
+            self.fields['na_date'].widget.attrs.pop('readonly', None)
+            
+            # Clear styles so they look like normal inputs
+            self.fields['na_reason'].widget.attrs['style'] = ''
+            self.fields['na_date'].widget.attrs['style'] = ''
 
         
 
