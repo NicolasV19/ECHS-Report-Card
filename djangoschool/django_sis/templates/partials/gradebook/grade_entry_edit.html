@@ -1,0 +1,54 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+
+<form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}  {# REQUIRED: Handles the row counts #}
+
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 30%;">Student</th> {# Changed Header #}
+                    <th style="width: 20%;">Score</th>
+                    <th style="width: 30%;">Nonactive Details</th>
+                    <th style="width: 10%;">Active?</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for form in formset %}
+                <tr>
+                    {# HIDDEN ID: Critical for updating existing rows instead of creating new ones #}
+                    {{ form.id }}
+                    
+                    <td>
+                        {# This displays the Student object string representation #}
+                        {# If your Student model has a __str__ method, it shows the name #}
+                        {{ form.instance.student }} 
+                        
+                        {# Debugging: If the name is blank, check if the student ID exists #}
+                        {% if not form.instance.student %}
+                           <span class="text-danger">No Student Linked</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ form.score }}
+                        {% if form.score.errors %}
+                            <div class="text-danger small">{{ form.score.errors }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ form.na_reason }}</td>
+                    <td class="text-center">{{ form.is_active }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Save Grades</button>
+        <a href="{% url 'grade-entry-table' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+
+</form> {% endblock %}

@@ -2,10 +2,14 @@
 
 {% block content %}
 <div class="wizard-container container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
-        </div>
+<div class="card bg-primary text-white">
+<div class="collapse-title text-xl font-medium">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</div>
+</div>
+    {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
+    <fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1">
+        {% comment %} <div class="card bg-primary text-white">
+            <h4 class="mb-2">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
+        </div> {% endcomment %}
         {% comment %} <table>
         <tr>
         <td>
@@ -33,7 +37,7 @@
         </tr>
         </table> {% endcomment %}
 
-        <div class="card-body">
+        <div class="card-body" style="width: 1200px; ">
             {% if selected_course %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
                 <span>
@@ -73,18 +77,12 @@
                                 <tbody>
                                     {% for form in wizard.form %}
                                     <tr>
-                                        {% for hidden in form.hidden_fields %}
-                                            {{ hidden }}
-                                        {% endfor %}
-
-            
-
-                                        <td>
-                                            {{ form.student_name }} 
-                                            {% if form.student.errors %}
-                                                <div class="text-danger small">{{ form.student.errors }}</div>
-                                            {% endif %}
-                                        </td>
+  {% for hidden in form.hidden_fields %}
+    {{ hidden }}  {# This will now include the student ID #}
+{% endfor %}
+<td>
+    {{ form.student_name }} 
+</td>
 
                                         <td>
                                             {{ form.score }}
@@ -234,9 +232,11 @@
                     </div>
                 {% endif %}
 
-                <hr class="my-4">
-
-                <div class="d-flex justify-content-between">
+                {% comment %} <hr class="my-4"> {% endcomment %}
+                
+                
+                {% comment %} <div class="d-flex justify-content-between"> {% endcomment %}
+                <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0" style="padding-top: 16px; padding-bottom: 16px;">
                     {% if wizard.steps.prev %}
                         <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-secondary">
                             &laquo; Back
@@ -256,7 +256,8 @@
                 
             </form>
         </div>
-    </div>
+    {% comment %} </div> {% endcomment %}
+    </fieldset>
 </div>
 
 <style>
@@ -273,19 +274,5 @@
         width: 100%;
     }
 </style>
-{% comment %} <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const dropdown = document.getElementById('sortDropdown');
-        const btnPrint = document.getElementById('btnExportPDF');
 
-        function updateLink() {
-            const selectedVal = dropdown.value;
-            btnPrint.href = `${baseUrl}?sort=${selectedVal}`;
-        }
-
-        dropdown.addEventListener('change', updateLink);
-        // Opsional: Jalankan sekali saat load
-        // updateLink(); 
-    });
-</script> {% endcomment %}
 {% endblock %}

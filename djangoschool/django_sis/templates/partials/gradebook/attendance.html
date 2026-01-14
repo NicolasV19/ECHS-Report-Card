@@ -1,9 +1,15 @@
 {% extends "base_gradebook.html" %}
 {% block content %}
 
-<h1>Student Attendance</h1>
- <div class="card-body">
-                        <form method="post" enctype="multipart/form-data">
+<div class="wizard-container container mt-4">
+<div class="card bg-primary text-white">
+<div class="collapse-title text-xl font-medium">Student Attendance</div>
+</div>
+<fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1" style="width: 1000px">
+
+ {% comment %} <div class="card-body bg-secondary bg-opacity-3" style="width: 600px;"> {% endcomment %}
+ 
+                        <form method="post" enctype="multipart/form-data" style="padding: 20px;">
                             {% csrf_token %}
 
                             {% for field in teach_form %}
@@ -33,9 +39,10 @@
                             {% endfor %}
                             
                             <div class="d-flex justify-content-between">
-                                <button type="submit" class="btn btn-primary">Save</button>
+                                <button type="submit" class="btn btn-secondary">Save</button>
                             </div>
                         </form>
-                    </div>
+                    {% comment %} </div> {% endcomment %}
+                    </fieldset>
 
 {% endblock %}
