@@ -12,9 +12,10 @@
 }
 </style>
 
-<div class="rounded-box border bg-base-100 wide">
+{% comment %} <div class="rounded-box border bg-base-100 wide" style="padding: 20px; max-width: 100%; width: auto;"> {% endcomment %}
+<div class="flex-1 card card-compact bg-base-100 p-4 mb-4">
 
-<div class="navbar shadow-sm">
+<div class="navbar">
 <div class="navbar-start">  
 <p>&nbsp;</p>
 </div>
@@ -29,10 +30,10 @@
 
 
 
-<div class="overflow-x-auto">
-    <div class="overflow-x-auto">
-        <table class="table">
-            <thead>
+<div class="card-body px-3 py-1 w-full">
+    <div class="overflow-auto max-h-[60vh]">
+        <table class="table table-sm border border-base-200 table-auto">
+            <thead class="bg-base-300 text-gray-950">
                 <tr>
                     {% comment %} <th>User</th> {% endcomment %}
                     <th>Date</th>

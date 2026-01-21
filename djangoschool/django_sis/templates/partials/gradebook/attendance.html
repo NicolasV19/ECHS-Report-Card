@@ -1,15 +1,15 @@
 {% extends "base_gradebook.html" %}
 {% block content %}
 
-<div class="wizard-container container mt-4">
-<div class="card bg-primary text-white">
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+<div>
 <div class="collapse-title text-xl font-medium">Student Attendance</div>
 </div>
-<fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1" style="width: 1000px">
+<fieldset class="flex-1 mb-3 collapse-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1" style="width: 100%; height: auto;">
 
  {% comment %} <div class="card-body bg-secondary bg-opacity-3" style="width: 600px;"> {% endcomment %}
  
-                        <form method="post" enctype="multipart/form-data" style="padding: 20px;">
+                        <form method="post" enctype="multipart/form-data" style="padding: 20px; width: 100%; height: auto;">
                             {% csrf_token %}
 
                             {% for field in teach_form %}

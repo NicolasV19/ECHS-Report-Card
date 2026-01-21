@@ -1,9 +1,14 @@
 {% extends "base_gradebook.html" %}
 
 {% block content %}
-<div class="wizard-container container mt-4">
-<div class="card bg-primary text-white">
-<div class="collapse-title text-xl font-medium">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</div>
+<style>
+.sticky {
+    position: sticky;
+}
+</style>
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+<div>
+<div class="collapse-title text-xl font-medium">Grade Entry</div>
 </div>
     {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
     <fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1">
@@ -37,7 +42,7 @@
         </tr>
         </table> {% endcomment %}
 
-        <div class="card-body" style="width: 1200px; ">
+        <div class="flex-1 card-body" style="max-width: 100%; width: auto;">
             {% if selected_course %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
                 <span>
@@ -91,23 +96,48 @@
                                             {% endif %}
                                         </td>
 
-                                        <td>
+                                        <td id="na_reason_td_{{ forloop.counter0 }}">
+        {# Determine if the row is currently active #}
+        {# We check if the value is True. We assume default is True if None. #}
+        {% with is_active=form.is_active.value|default_if_none:True %}
+        
+        <input 
+            id="na_reason_input_{{ forloop.counter0 }}"
+            type="text" 
+            class="form-control"
+            name="{{ form.na_reason.html_name }}" 
+            value="{{ form.na_reason.value|default_if_none:'' }}"
+            
+            {# LOGIC: If is_active is True, make it Readonly #}
+            {% if is_active %}
+                readonly
+                style="background-color: #e9ecef; cursor: not-allowed;"
+                placeholder="Item is active"
+            {% else %}
+                placeholder="Enter reason..."
+            {% endif %}
+        >
+        {% endwith %}
+
+        {% if form.na_reason.errors %}
+            <div class="text-danger small">{{ form.na_reason.errors }}</div>
+        {% endif %}
+    </td>
+
+    <td class="text-center">
+        {{ form.is_active }}
+    </td>
+
+                                        {% comment %} <td>
                                             {{ form.na_reason }}
                                             {% if form.na_reason.errors %}
                                                 <div class="text-danger small">{{ form.na_reason.errors }}</div>
                                             {% endif %}
                                         </td>
 
-                                        {% comment %} <td>
-                                            {{ form.teacher_notes }}
-                                            {% if form.teacher_notes.errors %}
-                                                <div class="text-danger small">{{ form.teacher_notes.errors }}</div>
-                                            {% endif %}
-                                        </td> {% endcomment %}
-
                                         <td class="text-center">
                                             {{ form.is_active }}
-                                        </td>
+                                        </td> {% endcomment %}
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -236,22 +266,28 @@
                 
                 
                 {% comment %} <div class="d-flex justify-content-between"> {% endcomment %}
-                <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0" style="padding-top: 16px; padding-bottom: 16px;">
+                
                     {% if wizard.steps.prev %}
-                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-secondary">
+                    <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0">
+                    <div class="p-3 bg-base-100 justify-between flex flex-row-reverse gap-15 sticky top-3 max-md:hidden">
+                    <div class="text-start flex  gap-2">
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
                             &laquo; Back
                         </button>
                     {% else %}
                         <div></div> 
                     {% endif %}
 
-                    <button type="submit" class="btn btn-success px-4" onclick="confirmSubmit(event)">
+                    <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
                         {% if wizard.steps.current == '2' %}
-                            <i class="bi bi-save"></i> Save Grades
+                            Save Grades
                         {% else %}
-                            Next &raquo;
+                            Next
                         {% endif %}
                     </button>
+                </div>
+                </div>
+                </div>
                 </div>
                 
             </form>
