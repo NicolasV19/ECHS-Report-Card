@@ -171,6 +171,9 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             step1_data = self.get_cleaned_data_for_step('1')
             if step1_data and 'max_score' in step1_data:
                 kwargs['max_score'] = step1_data['max_score']
+            # Pass form_kwargs_list for each form in the formset
+            initial = self.get_form_initial(step)
+            kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
         return kwargs
 
     def get_context_data(self, form, **kwargs):
@@ -862,6 +865,49 @@ def get_assignment_types(request):
     return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", {'assignment_types': assignment_types})
 
 
+@login_required
+def toggle_na_reason(request):
+    form_index = request.GET.get('form_index', '0')
+    
+    # Find the na_reason field name from the request
+    na_reason_keys = [k for k in request.GET.keys() if k.endswith('-na_reason')]
+    if na_reason_keys:
+        na_reason_name = na_reason_keys[0]
+        na_reason_value = request.GET.get(na_reason_name, '')
+    else:
+        na_reason_name = f'2-{form_index}-na_reason'
+        na_reason_value = request.GET.get(na_reason_name, '')
+    
+    # Get the is_active value
+    is_active_name = na_reason_name.replace('-na_reason', '-is_active')
+    is_active_value = request.GET.get(is_active_name, '')
+    is_active = is_active_value == 'on'
+    
+    if is_active:
+        input_html = f'''
+        <input id="na_reason_input_{form_index}"
+            type="text" 
+            class="form-control"
+            name="{na_reason_name}" 
+            value="{na_reason_value}"
+            readonly
+            style="background-color: #e9ecef; cursor: not-allowed;"
+            placeholder="Item is active"
+        >
+        '''
+    else:
+        input_html = f'''
+        <input id="na_reason_input_{form_index}"
+            type="text" 
+            class="form-control"
+            name="{na_reason_name}" 
+            value="{na_reason_value}"
+            placeholder="Enter reason..."
+        >
+        '''
+    return HttpResponse(input_html.strip())
+
+
 # biar short name subject keliatan
 # kalau pakai cara ini berarti ComputationField yg biasanya dipake di ReportView
 # diambil alih manual pake yg ini
@@ -896,7 +942,7 @@ class ScoreField(ComputationField):
 
 
 class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
-    # template_name = "partials/gradebook/report_summary.html"
+    template_name = "partials/gradebook/report.html"
 
 
     report_title = "Report Card Ledger"
@@ -1124,7 +1170,12 @@ def ge_edit(request, pk):
     AssignmentFormSet = modelformset_factory(
         AssignmentDetail,
         fields=('score', 'na_reason', 'is_active'),
-        extra=0 # We don't want blank extra rows, we just want the students
+        extra=0, # We don't want blank extra rows, we just want the students
+        # widgets={
+        #     'score': forms.NumberInput(attrs={'class': 'form-control'}),
+        #     'na_reason': forms.TextInput(attrs={'class': 'form-control'}),
+        #     'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        # }
     )
 
     if request.method == 'POST':
@@ -1134,6 +1185,24 @@ def ge_edit(request, pk):
             return redirect('grade-entry-table') # Make sure this URL name is correct in urls.py
     else:
         formset = AssignmentFormSet(queryset=queryset)
+
+    # Add HTMX attributes to the forms
+    for i, form in enumerate(formset):
+        form.fields['na_reason'].widget.attrs.update({
+            'hx-get': f'/gradebook/toggle-na-reason/?form_index={i}',
+            'hx-trigger': 'change',
+            'hx-target': f'#na_reason_td_{i}',
+            'hx-swap': 'innerHTML',
+            'hx-include': f'[name="{form.add_prefix("na_reason")}"], [name="{form.add_prefix("is_active")}"]',
+            'class': 'form-control textarea textarea-bordered w-full min-w-24 focus:outline-0 transition-all focus:outline-offset-0'
+        })
+        form.fields['is_active'].widget.attrs.update({
+            'hx-get': f'/gradebook/toggle-na-reason/?form_index={i}',
+            'hx-trigger': 'change',
+            'hx-target': f'#na_reason_td_{i}',
+            'hx-swap': 'innerHTML',
+            'hx-include': f'[name="{form.add_prefix("na_reason")}"], [name="{form.add_prefix("is_active")}"]'
+        })
 
     return render(request, 'partials/gradebook/grade_entry_edit.html', {
         'formset': formset,
@@ -1256,3 +1325,34 @@ def tc_del(request, pk):
     #     'form': form,
     # }
     return render(request, 'partials/gradebook/grade_entry_delconf.html')
+
+
+
+# def toggle_na_reason(request):
+#     form_index = request.GET.get('form_index', 0)
+    
+#     # We create a dummy form instance for just this row
+#     # In a real scenario, you'd want to check if the checkbox was sent in GET
+#     is_active = request.GET.get(f'2-{form_index}-is_active') == 'on'
+    
+#     # Create a transient form to generate the HTML
+#     form = AssignmentDetailItemForm(
+#         prefix=f'2-{form_index}', 
+#         form_index=form_index
+#     )
+    
+#     # Manually force the logic based on what the checkbox just did
+#     if is_active:
+#         # Field should be readonly
+#         pass 
+#     else:
+#         # Field should be editable
+#         form.fields['na_reason'].widget.attrs.pop('readonly', None)
+#         form.fields['na_reason'].widget.attrs['style'] = 'background-color: #ffffff;'
+
+#     # Return only the input field partial
+#     # You can use a tiny template or just render the field
+#     context = {'form': form, 'index': form_index}
+#     return render(request, 'partials/gradebook/_na_reason_field.html', context)
+
+

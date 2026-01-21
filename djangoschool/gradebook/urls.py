@@ -17,13 +17,15 @@ urlpatterns = [
     path('get-period-ge/', views.get_period_ge, name='get_period_ge'),
     path('get-courses-ge/', views.get_courses, name='get_courses_ge'),
     path('get-subjects-ge/', views.get_subjects_ge, name='get_subjects_ge'),
+    path('toggle-na-reason/', views.toggle_na_reason, name='toggle_na_reason'),
     path('grade-entry-table', views.ge_table, name='grade-entry-table'),
     path('ge-edit/<int:pk>', views.ge_edit, name='ge-edit'),
     path('ge-delete/<int:pk>', views.ge_del, name='ge-delete'),
     path('report-card-table', views.tc_table, name='report-card-table'),
     path('tc-edit/<int:pk>', views.tc_edit, name='tc-edit'),
     path('tc-del/<int:pk>', views.tc_del, name='tc-del'),
-    path('attendance-list-homepage', views.attendance_list_admin, name='attendance-list-homepage')
+    path('attendance-list-homepage', views.attendance_list_admin, name='attendance-list-homepage'),
+    path('rcard-ledger/', views.ReportCardGradeSummary.as_view(), name='rcard-ledger'),   
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
     ]
