@@ -81,7 +81,7 @@
             class="content-wrapper w-full flex flex-col min-h-screen
             main-wrapper transition-all duration-200 ease-in-out">
             <div class="navbar bg-base-100">
-                <div class="navbar-start">
+                <div class="navbar-start" style="padding: 10px;">
                      <div id="menu-toggle" tabindex="0" role="button" class="btn btn-ghost btn-circle">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -93,6 +93,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
                         </svg>
                      </div>
+                     {% comment %} <button onclick="history.back()"><i class="fa-solid fa-angle-left"></i></button> {% endcomment %}
+                     <a href="{% url 'home' %}" class="btn btn-ghost"><i class="fa-solid fa-house text-lg"></i>Home</a>
+                        
                 </div>
                             <a class="flex flex-row h-16 items-center" href="#">
                 <div class="w-full">
@@ -105,16 +108,16 @@
                 <a href="admission/" class="btn btn-ghost text-xl">Admission</a>
                     {% comment %} <img src="{% static 'images/admission.png' %}" width="600" height="400"> {% endcomment %}
                 </div>
-                <div class="navbar-center max-sm:hidden">
+                {% comment %} <div class="navbar-center max-sm:hidden">
                     <a class="btn btn-ghost  text-xl" href="{% url 'gb-index' %}">
                         Gradebook
                     </a>
                 </div>
                 <!--- nanti kasih if --->
                 <div class="navbar-center max-sm:hidden">
-                <a href="{% url 'admin:index' %}" class="btn btn-ghost text-xl">SIS Admin</a>
+                <a href="{% url 'admin:index' %}" class="btn btn-ghost text-xl">SIS Admin</a> {% endcomment %}
                     {% comment %} <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400"> {% endcomment %}
-                </div>
+                {% comment %} </div> {% endcomment %}
                 <div class="navbar-end">
                     <div class="dropdown dropdown-bottom dropdown-end">
                         <div tabindex="0" role="button" class="btn btn-ghost btn-sm m-1">Theme
@@ -214,7 +217,7 @@
                 </div>
             </div>
             
-            {% comment %} <div class="flex">
+            <div class="flex">
             
         <div id="sidebar" class="flex max-md:hidden flex-col justify-between sidebar bg-base-100 border-base-200 border-e w-56">
         
@@ -234,22 +237,22 @@
                         <ul>
                             <li class="model-weighting">
                                 <a class=""
-                                   href="{% url 'grade-entry' %}">
-                                    Grade Entry
+                                   href="{% url 'registration-form' %}">
+                                    New Student
                                 </a>
                             </li>
-                            <li class="model-passinggrade">
+                            {% comment %} <li class="model-passinggrade">
                                 <a class=""
                                    href="{% url 'student-attendance' %}">
                                     Student Attendance
                                 </a>
-                            </li>
-                            <li class="model-passinggrade">
+                            </li> {% endcomment %}
+                            {% comment %} <li class="model-passinggrade">
                                 <a class=""
                                    href="{% url 'report-card' %}">
                                     Teacher's Notes
                                 </a>
-                            </li>
+                            </li> {% endcomment %}
                         </ul>
                     </details>
                 </li>
@@ -263,30 +266,30 @@
 
                                 <li class="model-weighting">
                                     <a class=""
-                                       href="#">
-                                        Students' Grade
+                                       href="{% url 'student-table' %}">
+                                        Students List
                                     </a>
                                 </li>
 
-                                <li class="model-passinggrade">
+                                {% comment %} <li class="model-passinggrade">
                                     <a class=""
                                        href="#">
                                         Comment Review
                                     </a>
-                                </li>
-                                <li class="model-passinggrade">
+                                </li> {% endcomment %}
+                                {% comment %} <li class="model-passinggrade">
                                     <a class=""
                                        href="{% url "midterm_report" %}">
                                         Generate Report
                                     </a>
-                                </li>
+                                </li> {% endcomment %}
 
                         </ul>
                     </details>
                 </li>
             </ul>
         </div>
-        </div> {% endcomment %}
+        </div>
             <div class="flex-1 p-5 pb-0 flex-wrap">
                 <div class="breadcrumbs">
                     {% block content %}

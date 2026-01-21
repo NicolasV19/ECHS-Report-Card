@@ -1,11 +1,11 @@
 {% load django_htmx %}
 <!DOCTYPE html>
+
 <html data-use-i18n="1" data-theme="" class="custom-scrollbars"
       lang="en-us"
       dir="ltr">
-
 <head>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         /* set selected theme before everything
         * to avoid color flash on refresh
@@ -94,6 +94,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
                         </svg>
                      </div>
+                     <a href="{% url 'home' %}" class="btn btn-ghost"><i class="fa-solid fa-house"></i>Home</a>
                 </div>
                             <a class="flex flex-row h-16 items-center" href="#">
                 <div class="w-full">
@@ -102,10 +103,12 @@
                     <img loading="lazy" class="max-h-20 p-2 m-auto max-w-32" src="/static_files/admin/img/logo_echs.jpeg" />
                 </div>
             </a>
+            
                 {% comment %} <div class="navbar-center max-sm:hidden">
                 <a href="{% url 'adm-index' %}" class="btn btn-ghost text-xl">Admission</a>
                 </div> {% endcomment %}
-                <div class="navbar-center max-sm:hidden">
+                <div class="sticky max-lg:fixed navbar-center max-sm:hidden">
+                
                     <a class="btn btn-ghost  text-xl" href="{% url 'gb-index' %}">
                         Gradebook
                     </a>
@@ -222,6 +225,7 @@
             main-wrapper transition-all duration-200 ease-in-out">
             <!-- Sidebar menu -->
             <ul class="menu rounded-box mb-auto w-56">
+                        
             <!-- Dashboard link -->
                 <div class="divider text-base-content/40 menu-title divider-start">Gradebook</div>
                 <li class="mb-2">
@@ -233,7 +237,7 @@
                         <ul>
                             <li class="model-weighting">
                                 <a class=""
-                                   href="{% url 'grade-entry-table' %}">
+                                   href="{% url 'grade-entry' %}">
                                     Grade Entry
                                 </a>
                             </li>
@@ -245,8 +249,8 @@
                             </li>
                             <li class="model-passinggrade">
                                 <a class=""
-                                   href="{% url 'report-card-table' %}">
-                                    Teacher's Notes
+                                   href="{% url 'report-card' %}">
+                                    Add Notes
                                 </a>
                             </li>
                             {% comment %} <li class="model-passinggrade">
@@ -268,23 +272,30 @@
 
                                 <li class="model-weighting">
                                     <a class=""
-                                       href="#">
+                                       href="{% url 'grade-entry-table' %}">
                                         Students' Grade
+                                    </a>
+                                </li>
+
+                                <li class="model-weighting">
+                                    <a class=""
+                                       href="{% url 'report-card-table' %}">
+                                        Teacher's Notes
                                     </a>
                                 </li>
 
                                 <li class="model-passinggrade">
                                     <a class=""
-                                       href="#">
-                                        Comment Review
+                                       href="{% url 'rcard-ledger' %}">
+                                        Report Card Ledger
                                     </a>
                                 </li>
-                                <li class="model-passinggrade">
+                                {% comment %} <li class="model-passinggrade">
                                     <a class=""
-                                       href="{% url "midterm_report" %}">
+                                       href="{% url 'midterm_report' %}">
                                         Generate Report
                                     </a>
-                                </li>
+                                </li> {% endcomment %}
 
                         </ul>
                     </details>
@@ -292,18 +303,18 @@
             </ul>
         </div>
         </div>
-            <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+            <div class="flex-1 p-5 pb-0 flex-wrap">
                 <div class="breadcrumbs">
                     {% block content %}
                         Halo kontent
                     {% endblock %}
                 </div>
             </div>
-            <div id="dyn-display-area" class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+            {% comment %} <div id="dyn-display-area" class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
                 {% block dynamic_content %}
                     
                 {% endblock %}
-            </div>
+            </div> {% endcomment %}
 
         <form id="logout-form" class="hidden" method="post" action="/admin/logout/">
             <input type="hidden" name="csrfmiddlewaretoken" value="{% csrf_token %}" />
