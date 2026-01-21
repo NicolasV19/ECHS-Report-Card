@@ -1,0 +1,14 @@
+{% extends "base_admission.html" %}
+{% block title %}
+    SIS - Admission
+{% endblock %}
+{% block app_name %}App Header goes here{% endblock %}
+{% block content %}
+
+        
+    <div class="responsive">
+        {% if user.is_authenticated %}
+            <h2>Welcome back {{ user.first_name }} ({{ user.username }})</h2>
+        {% endif %}
+    </div>
+{% endblock %}
