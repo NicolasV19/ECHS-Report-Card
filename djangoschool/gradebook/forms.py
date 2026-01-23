@@ -213,90 +213,90 @@ class AssignmentDetailItemForm(forms.ModelForm):
             'student': forms.HiddenInput(),
         }
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    #     # 1. SETUP STUDENT NAME (Keep your existing logic)
-    #     student_obj = None
-    #     if self.instance and hasattr(self.instance, 'student'):
-    #         student_obj = self.instance.student
-    #     elif self.initial.get('student'):
-    #         from admission.models import Student
-    #         try:
-    #             student_obj = Student.objects.get(pk=self.initial['student'])
-    #         except Student.DoesNotExist:
-    #             pass
+        # 1. SETUP STUDENT NAME (Keep your existing logic)
+        student_obj = None
+        if self.instance and hasattr(self.instance, 'student'):
+            student_obj = self.instance.student
+        elif self.initial.get('student'):
+            from admission.models import Student
+            try:
+                student_obj = Student.objects.get(pk=self.initial['student'])
+            except Student.DoesNotExist:
+                pass
         
-    #     if student_obj:
-    #         self.fields['student_name'].initial = str(student_obj)
+        if student_obj:
+            self.fields['student_name'].initial = str(student_obj)
             
-    #     # 2. DETERMINE IS_ACTIVE STATUS (The Fix)
-    #     # Default to True (active) unless we find otherwise
-    #     is_active_val = True 
+        # 2. DETERMINE IS_ACTIVE STATUS (The Fix)
+        # Default to True (active) unless we find otherwise
+        is_active_val = True 
 
-    #     if self.is_bound:
-    #         # === THIS IS THE MISSING PART ===
-    #         # If the user submitted data (clicked Save/Next), we MUST check the 
-    #         # checkbox state from the raw data, not the database/initials.
+        if self.is_bound:
+            # === THIS IS THE MISSING PART ===
+            # If the user submitted data (clicked Save/Next), we MUST check the 
+            # checkbox state from the raw data, not the database/initials.
             
-    #         # Get the full HTML name for this specific row (e.g., '2-0-is_active')
-    #         field_name = self.add_prefix('is_active')
+            # Get the full HTML name for this specific row (e.g., '2-0-is_active')
+            field_name = self.add_prefix('is_active')
             
-    #         # In HTML, if a checkbox is unchecked, it sends NOTHING. 
-    #         # If it is checked, it sends the key.
-    #         # So, if the key is missing from data, is_active is False.
-    #         if self.data and field_name not in self.data:
-    #             is_active_val = False
-    #     else:
-    #         # If just loading the page for the first time
-    #         if self.instance and self.instance.pk is not None:
-    #             is_active_val = self.instance.is_active
-    #         elif 'is_active' in self.initial:
-    #             is_active_val = self.initial.get('is_active')
+            # In HTML, if a checkbox is unchecked, it sends NOTHING. 
+            # If it is checked, it sends the key.
+            # So, if the key is missing from data, is_active is False.
+            if self.data and field_name not in self.data:
+                is_active_val = False
+        else:
+            # If just loading the page for the first time
+            if self.instance and self.instance.pk is not None:
+                is_active_val = self.instance.is_active
+            elif 'is_active' in self.initial:
+                is_active_val = self.initial.get('is_active')
 
-    #     # 3. APPLY READONLY/DISABLED BASED ON STATUS
-    #     if is_active_val:
-    #         # If Active: fields are Readonly (Greyed out)
-    #         self.fields['na_reason'].widget.attrs.update({
-    #             'readonly': 'readonly',
-    #             'style': 'background-color: #e9ecef; cursor: not-allowed;',
-    #             'placeholder': 'Not applicable'
-    #         })
-    #         self.fields['na_date'].widget.attrs.update({
-    #             'readonly': 'readonly',
-    #             'style': 'background-color: #e9ecef;'
-    #         })
-    #     else:
-    #         # If Inactive: fields are Editable
-    #         self.fields['na_reason'].widget.attrs.pop('readonly', None)
-    #         self.fields['na_date'].widget.attrs.pop('readonly', None)
+        # 3. APPLY READONLY/DISABLED BASED ON STATUS
+        if is_active_val:
+            # If Active: fields are Readonly (Greyed out)
+            self.fields['na_reason'].widget.attrs.update({
+                'readonly': 'readonly',
+                'style': 'background-color: #e9ecef; cursor: not-allowed;',
+                'placeholder': 'Not applicable'
+            })
+            self.fields['na_date'].widget.attrs.update({
+                'readonly': 'readonly',
+                'style': 'background-color: #e9ecef;'
+            })
+        else:
+            # If Inactive: fields are Editable
+            self.fields['na_reason'].widget.attrs.pop('readonly', None)
+            self.fields['na_date'].widget.attrs.pop('readonly', None)
             
-    #         # Clear styles so they look like normal inputs
-    #         self.fields['na_reason'].widget.attrs['style'] = ''
-    #         self.fields['na_date'].widget.attrs['style'] = ''
+            # Clear styles so they look like normal inputs
+            self.fields['na_reason'].widget.attrs['style'] = ''
+            self.fields['na_date'].widget.attrs['style'] = ''
 
-    #     # 4. ADD HTMX ATTRIBUTES TO is_active FOR DYNAMIC TOGGLE
-    #     form_index = kwargs.get('form_index', 0)  # We'll pass this from the view
-    #     self.fields['is_active'].widget.attrs.update({
-    #         'hx-get': f'/gradebook/toggle-na-reason/?form_index={form_index}',
-    #         'hx-trigger': 'change',
-    #         'hx-target': f'#na_reason_td_{form_index}',
-    #         'hx-swap': 'innerHTML',
-    #         'hx-include': f'[name="{self.add_prefix("na_reason")}"], [name="{self.add_prefix("is_active")}"]'
-    #     })
-    #     self.fields['na_date'].widget.attrs['style'] = ''
+        # 4. ADD HTMX ATTRIBUTES TO is_active FOR DYNAMIC TOGGLE
+        form_index = kwargs.get('form_index', 0)  # We'll pass this from the view
+        self.fields['is_active'].widget.attrs.update({
+            'hx-get': f'/gradebook/toggle-na-reason/?form_index={form_index}',
+            'hx-trigger': 'change',
+            'hx-target': f'#na_reason_td_{form_index}',
+            'hx-swap': 'innerHTML',
+            'hx-include': f'[name="{self.add_prefix("na_reason")}"], [name="{self.add_prefix("is_active")}"]'
+        })
+        self.fields['na_date'].widget.attrs['style'] = ''
 
         
 
 # Membuat FormSet Factory
 class AssignmentDetailFormSet(BaseFormSet):
 
-    # class Meta:
-    #     widgets={
-    #         'score': forms.NumberInput(attrs={'class': 'form-control'}),
-    #         'na_reason': forms.TextInput(attrs={'class': 'form-control'}),
-    #         'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-    #     }
+    class Meta:
+        widgets={
+            'score': forms.NumberInput(attrs={'class': 'form-control'}),
+            'na_reason': forms.TextInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
     def __init__(self, *args, max_score=None, form_kwargs_list=None, **kwargs):
         form_kwargs_list = kwargs.pop('form_kwargs_list', [])
         super().__init__(*args, **kwargs)

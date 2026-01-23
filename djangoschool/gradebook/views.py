@@ -1328,31 +1328,46 @@ def tc_del(request, pk):
 
 
 
-# def toggle_na_reason(request):
-#     form_index = request.GET.get('form_index', 0)
+@login_required
+def toggle_na_reason(request):
+    form_index = request.GET.get('form_index', '0')
     
-#     # We create a dummy form instance for just this row
-#     # In a real scenario, you'd want to check if the checkbox was sent in GET
-#     is_active = request.GET.get(f'2-{form_index}-is_active') == 'on'
+    # Find the na_reason field name from the request
+    na_reason_keys = [k for k in request.GET.keys() if k.endswith('-na_reason')]
+    if na_reason_keys:
+        na_reason_name = na_reason_keys[0]
+        na_reason_value = request.GET.get(na_reason_name, '')
+    else:
+        na_reason_name = f'2-{form_index}-na_reason'
+        na_reason_value = request.GET.get(na_reason_name, '')
     
-#     # Create a transient form to generate the HTML
-#     form = AssignmentDetailItemForm(
-#         prefix=f'2-{form_index}', 
-#         form_index=form_index
-#     )
+    # Get the is_active value
+    is_active_name = na_reason_name.replace('-na_reason', '-is_active')
+    is_active_value = request.GET.get(is_active_name, '')
+    is_active = is_active_value == 'on'
     
-#     # Manually force the logic based on what the checkbox just did
-#     if is_active:
-#         # Field should be readonly
-#         pass 
-#     else:
-#         # Field should be editable
-#         form.fields['na_reason'].widget.attrs.pop('readonly', None)
-#         form.fields['na_reason'].widget.attrs['style'] = 'background-color: #ffffff;'
-
-#     # Return only the input field partial
-#     # You can use a tiny template or just render the field
-#     context = {'form': form, 'index': form_index}
-#     return render(request, 'partials/gradebook/_na_reason_field.html', context)
+    if is_active:
+        input_html = f'''
+        <input id="na_reason_input_{form_index}"
+            type="text" 
+            class="form-control"
+            name="{na_reason_name}" 
+            value=""
+            readonly
+            style="background-color: #e9ecef; cursor: not-allowed;"
+            placeholder="Item is active"
+        >
+        '''
+    else:
+        input_html = f'''
+        <input id="na_reason_input_{form_index}"
+            type="text" 
+            class="form-control"
+            name="{na_reason_name}" 
+            value=""
+            placeholder="Enter reason..."
+        >
+        '''
+    return HttpResponse(input_html.strip())
 
 
