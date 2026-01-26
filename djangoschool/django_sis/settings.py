@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-i4rd4lfs2lmi2l8rsuxe(1$pa$7dh#7-o*i###tb)v86!20t@c"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['.vercel.app', '127.0.0.1', 'localhost']
 
@@ -96,10 +96,21 @@ WSGI_APPLICATION = "django_sis.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "django_sisdb.sqlite3",
+#     }
+# }
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "django_sisdb.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "railway",
+        "USER": "postgres",
+        "PASSWORD": "geiBpfyCEViGgvSBSEapSzmXKsmpywSS",
+        "HOST": "ballast.proxy.rlwy.net",
+        "PORT": "23615",
     }
 }
 
