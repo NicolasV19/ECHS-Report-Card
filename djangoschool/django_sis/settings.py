@@ -33,7 +33,7 @@ INTERNAL_IPS = ["127.0.0.1",]
 # Application definition
 
 INSTALLED_APPS = [
-    "whitenoise.runserver_nostatic"
+    "whitenoise.runserver_nostatic",
     "django_daisy",              #for django-daisy
     # "django.contrib.admin",
     "django_sis.apps.CustomAdminConfig",
