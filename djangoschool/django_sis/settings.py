@@ -33,8 +33,10 @@ INTERNAL_IPS = ["127.0.0.1",]
 # Application definition
 
 INSTALLED_APPS = [
+    "whitenoise.runserver_nostatic"
     "django_daisy",              #for django-daisy
-    "django.contrib.admin",
+    # "django.contrib.admin",
+    "django_sis.apps.CustomAdminConfig",
     "django.contrib.humanize",   #for django-daisy
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -60,6 +62,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 MIDDLEWARE = [
     'simple_history.middleware.HistoryRequestMiddleware',
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -148,7 +151,7 @@ DAISY_SETTINGS = {
     'SITE_TITLE': 'System Administration',  # The title of the site
     'SITE_HEADER': 'SIS Backend Admin',  # Header text displayed in the admin panel
     'INDEX_TITLE': 'Hi, welcome to SIS dashboard',  # The title for the index page of dashboard
-    'SITE_LOGO': '/static_files/admin/img/logo_tmp.png',  # Path to the logo image displayed in the sidebar
+    'SITE_LOGO': '/static_files/admin/img/logo_echs.jpeg',  # Path to the logo image displayed in the sidebar
     'EXTRA_STYLES': [],  # List of extra stylesheets to be loaded in base.html (optional)
     'EXTRA_SCRIPTS': [],  # List of extra script URLs to be loaded in base.html (optional)
     'LOAD_FULL_STYLES': True,  # If True, loads full DaisyUI components in the admin (useful if you have custom template overrides)
@@ -174,6 +177,8 @@ DAISY_SETTINGS = {
 
     },
 }
+
+
 #LOGIN_REDIRECT_URL = '/'
 # LOGGING = {
 #     'version': 1,
