@@ -301,6 +301,11 @@ class AssignmentDetailItemForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
     )
 
+    student_nisn = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
+    )
+
     class Meta:
         model = AssignmentDetail
         # YOU MUST INCLUDE 'student' HERE
@@ -310,6 +315,7 @@ class AssignmentDetailItemForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        student_obj = kwargs.pop('student', None)
         super().__init__(*args, **kwargs)
 
         # 1. SETUP STUDENT NAME (Keep your existing logic)
@@ -381,6 +387,35 @@ class AssignmentDetailItemForm(forms.ModelForm):
             'hx-include': f'[name="{self.add_prefix("na_reason")}"], [name="{self.add_prefix("is_active")}"]'
         })
         self.fields['na_date'].widget.attrs['style'] = ''
+
+        if not student_obj:
+            if self.instance and hasattr(self.instance, 'student'):
+                student_obj = self.instance.student
+            elif self.initial.get('student'):
+                from admission.models import Student
+                try:
+                    student_obj = Student.objects.get(pk=self.initial['student'])
+                except Student.DoesNotExist:
+                    pass
+
+        # 3. Calculate the Name
+        if student_obj:
+            # Access the related Registration table
+            # We use getattr in case the relationship is missing (prevents crash)
+            reg_data = getattr(student_obj, 'registration_data', None)
+            
+            if reg_data:
+                first = reg_data.first_name or ""
+                middle = reg_data.middle_name or ""
+                last = reg_data.last_name or ""
+                
+                # Logic: If middle name exists, add it with spaces
+                full_name = f"{first} {middle} {last}".strip()
+                
+                # Assign to the readonly field
+                self.fields['student_name'].initial = full_name
+            self.fields['student_nisn'].initial = student_obj.nisn
+        
 
         
 
