@@ -4,7 +4,7 @@ from datetime import datetime
 from slick_reporting.forms import BaseReportForm
 from django.forms import modelform_factory, formset_factory, modelformset_factory, BaseFormSet
 from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject, Course, LearningPeriod, AcademicYear, AssignmentType
-from admission.models import Class, ClassMember, Teacher, AbstractClass, Student, SchoolLevel
+from admission.models import Class, ClassMember, GradeLevel, Teacher, AbstractClass, Student, SchoolLevel
 
 # Define grade choices
 FINAL_GRADE_CHOICES = [
@@ -19,7 +19,7 @@ FINAL_GRADE_CHOICES = [
 class GradeEntryForm(forms.ModelForm):
     class Meta:
         model = GradeEntry
-        fields = ["academic_year", "period", "teacher", "subject", "course", "assignment_type"]
+        fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_type"]
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,16 +29,23 @@ class GradeEntryForm(forms.ModelForm):
         initial = self.initial
         
         acayear = data.get('0-academic_year') or initial.get('academic_year')
+        level = data.get('0-level') or initial.get('level')
         period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
         subject = data.get('0-subject') or initial.get('subject')
         course = data.get('0-course') or initial.get('course')
         assignment_type = data.get('0-assignment_type') or initial.get('assignment_type')
         # 2. Logic: Period depends on Academic Year
+
+
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+            self.fields['level'].queryset = GradeLevel.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
+            self.fields['level'].queryset = GradeLevel.objects.none()
+
+        
 
         # 3. Logic: Teacher depends on Period
         if period:
@@ -59,32 +66,59 @@ class GradeEntryForm(forms.ModelForm):
         else:
             self.fields['course'].queryset = Course.objects.none()
 
-        # if course:
-        #     self.fields['assignment_type'].queryset = AssignmentType.objects.all()
-        # else:
-        #     self.fields['assignment_type'].queryset = AssignmentType.objects.none()
+        if course:
+            self.fields['assignment_type'].queryset = AssignmentType.objects.all()
+        else:
+            self.fields['assignment_type'].queryset = AssignmentType.objects.none()
 
         # --- HTMX Attributes ---
         # Update Academic Year to trigger Period update
         self.fields['academic_year'].widget.attrs.update({
+            'id': 'acayear-select-ge',  # Vital for the listener
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-period-ge/',
             'hx-trigger': 'change',
-            'hx-target': '#period-select-ge', # Make sure this matches the ID below
+            'hx-target': '#period-select-ge', # Updates Period normally
             'hx-swap': 'innerHTML',
         })
 
-        # Update Period to trigger Teacher update
+        # --- 2. PERIOD (Standard Chain) ---
         self.fields['period'].widget.attrs.update({
-            'id': 'period-select-ge', # Set ID for target
+            'id': 'period-select-ge',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-teachers-ge/',
             'hx-trigger': 'change',
             'hx-target': '#teacher-select-ge',
             'hx-swap': 'innerHTML',
+            'hx-include': '#period-select-ge' # Use ID selector for safety
         })
 
-        # Set ID for Teacher field so it can be targeted
+        # --- 3. LEVEL (The Listener) ---
+        # "I will update myself whenever Academic Year changes"
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-levels-ge/', # Separate View
+            'hx-trigger': 'change from:#acayear-select-ge', # LISTEN to the Year field
+            'hx-include': '#acayear-select-ge', # Send the Year data
+            'hx-target': '#level-select-ge', # Update myself
+            'hx-swap': 'innerHTML',
+        })
+
+        # ... (Teacher and Subject logic remains the same) ...
+
+        # --- 4. COURSE (Triggers Assignment Type) ---
+        self.fields['course'].widget.attrs.update({
+            'id': 'course-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-assignment-types-ge/', # Separate View
+            'hx-trigger': 'change',
+            'hx-target': '#assignment-type-select-ge',
+            'hx-swap': 'innerHTML',
+            # hx-include is not strictly needed if we just need the course ID 
+            # (htmx sends the trigger element's value by default)
+        })
+
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ge',
             'class': 'custom-select mb-4',
@@ -103,7 +137,69 @@ class GradeEntryForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
         })
 
-        self.fields['course'].widget.attrs['id'] = 'course-select-ge'
+        # --- 5. ASSIGNMENT TYPE ---
+        self.fields['assignment_type'].widget.attrs.update({
+            'id': 'assignment-type-select-ge',
+            'class': 'custom-select mb-4',
+        })
+        
+        # Ensure Teacher/Subject IDs match your previous setup
+        self.fields['teacher'].widget.attrs['id'] = 'teacher-select-ge'
+        self.fields['subject'].widget.attrs['id'] = 'subject-select-ge'
+
+
+
+
+
+        # old code
+        # self.fields['academic_year'].widget.attrs.update({
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-period-ge/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#period-select-ge', # Make sure this matches the ID below
+        #     'hx-swap': 'innerHTML',
+        # })
+
+        # # Update Period to trigger Teacher update
+        # self.fields['period'].widget.attrs.update({
+        #     'id': 'period-select-ge', # Set ID for target
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-teachers-ge/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#teacher-select-ge',
+        #     'hx-swap': 'innerHTML',
+        # })
+
+        # # Set ID for Teacher field so it can be targeted
+        # self.fields['teacher'].widget.attrs.update({
+        #     'id': 'teacher-select-ge',
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-subjects-ge/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#subject-select-ge',
+        #     'hx-swap': 'innerHTML',
+        # })
+
+        # self.fields['subject'].widget.attrs.update({
+        #     'id': 'subject-select-ge',
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-courses-ge/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#course-select-ge',
+        #     'hx-swap': 'innerHTML',
+        # })
+
+        # self.fields['course'].widget.attrs.update({
+        #     'id': 'course-select-ge',
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get_assignment_types/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#assignment-type-select-ge',
+        #     'hx-swap': 'innerHTML',
+        # })
+
+        # self.fields['course'].widget.attrs['id'] = 'course-select-ge'
+        # self.fields['level'].widget.attrs['id'] = 'level-select-ge'
         
 class ReportCardComment(forms.ModelForm):
     class Meta:

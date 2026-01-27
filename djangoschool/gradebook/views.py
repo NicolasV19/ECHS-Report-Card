@@ -22,6 +22,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory, formset_factory
 from django.core.paginator import Paginator
 from django import forms, template
+from django.template.loader import render_to_string
 
 register = template.Library()
 
@@ -188,9 +189,11 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             acayear = AcademicYear.objects.all()
             period = LearningPeriod.objects.all().select_related('academic_year')
             subject = Subject.objects.all()
+            level = GradeLevel.objects.all()
             context['selected_acayear'] = acayear
             context['selected_period'] = period
             context['selected_subject'] = subject
+            context['selected_level'] = level
         
         # Kirim data head untuk display di step 3 (index '2')
         if self.steps.current == '2':
@@ -785,6 +788,20 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             
         return render(self.request, "partials/gradebook/finished_screen_teachercomm.html")
     
+def get_levels_ge(request):
+    # Check for the variable name sent by the 'academic_year' field
+    # (Django form fields usually send '0-academic_year')
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    
+    if acayear_id:
+        # Load levels only if a year is selected
+        levels = GradeLevel.objects.all()
+    else:
+        levels = GradeLevel.objects.none()
+        
+    context = {'levels': levels}
+    # Use your existing folder structure
+    return render(request, "partials/gradebook/gradeentry_partials/level.html", context)
 
 def get_teachers(request):
     period_id = request.GET.get('0-period') or request.GET.get('period')
@@ -818,11 +835,28 @@ def get_period_ge(request):
         periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
     else:
         periods = LearningPeriod.objects.none()
-    context = {
+    # context = {
+    #     'periods': periods,
+    #     'selected_period': selected_period
+    # }
+    # return render(request, "partials/gradebook/gradeentry_partials/period.html", context)
+
+        # Render period HTML as before
+    html = render_to_string("partials/gradebook/gradeentry_partials/period.html", {
         'periods': periods,
         'selected_period': selected_period
-    }
-    return render(request, "partials/gradebook/gradeentry_partials/period.html", context)
+    })
+    
+    # Also render level HTML for OOB update (populated if academic_year is set)
+    level_queryset = GradeLevel.objects.all() if acayear_id else GradeLevel.objects.none()
+    selected_level = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
+    level_html = render_to_string("partials/gradebook/gradeentry_partials/level.html", {
+        'levels': level_queryset,
+        'selected_level': selected_level
+    })
+    
+    # Return period HTML + OOB update for level
+    return HttpResponse(html + f'<div hx-swap-oob="#level-select-ge">{level_html}</div>')
 
 
 def get_subjects_ge(request):
@@ -854,15 +888,22 @@ def get_courses_ge(request):
     return render(request, "partials/gradebook/course_list.html", context)
 
 
-def get_assignment_types(request):
-    course_id = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
-
+def get_assignment_types_ge(request):
+    # Check for the course ID
+    course_id = request.GET.get('0-course') or request.GET.get('course')
+    
     if course_id:
-        assignment_types = AssignmentType.objects.all()
+        # Get the subject from the course
+        course = Course.objects.get(id=course_id)
+        subject_id = course.subject_id
+        # Get assignment types associated with the subject via Weighting table
+        assignment_ids = Weighting.objects.filter(subject_id=subject_id).values_list('assignment_id', flat=True).distinct()
+        types = AssignmentType.objects.filter(id__in=assignment_ids)
     else:
-        assignment_types = AssignmentType.objects.none()
-
-    return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", {'assignment_types': assignment_types})
+        types = AssignmentType.objects.none()
+        
+    context = {'assignment_types': types} # Make sure this key matches your template loop
+    return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", context)
 
 
 @login_required
