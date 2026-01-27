@@ -72,6 +72,7 @@
                             <table class="table table-hover table-bordered align-middle">
                                 <thead class="table-light">
                                     <tr>
+                                        <th style="width: 30%;">NISN</th>
                                         <th style="width: 30%;">Name</th>
                                         <th style="width: 20%;">Score</th>
                                         <th style="width: 30%;">Nonactive Details</th>
@@ -86,7 +87,10 @@
     {{ hidden }}  {# This will now include the student ID #}
 {% endfor %}
 <td>
-    {{ form.student_name }} 
+    {{ form.student_nisn }}
+</td>
+<td>
+    {{ form.student_name }}
 </td>
 
                                         <td>
