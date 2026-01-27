@@ -26,9 +26,13 @@ SECRET_KEY = "django-insecure-i4rd4lfs2lmi2l8rsuxe(1$pa$7dh#7-o*i###tb)v86!20t@c
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['.vercel.app', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ["superdifficult-semitransparently-jamel.ngrok-free.dev", "127.0.0.1"]
 
 INTERNAL_IPS = ["127.0.0.1",]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://superdifficult-semitransparently-jamel.ngrok-free.dev",
+]
 
 # Application definition
 
@@ -96,23 +100,24 @@ WSGI_APPLICATION = "django_sis.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "django_sisdb.sqlite3",
-#     }
-# }
-
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "railway",
-        "USER": "postgres",
-        "PASSWORD": "geiBpfyCEViGgvSBSEapSzmXKsmpywSS",
-        "HOST": "ballast.proxy.rlwy.net",
-        "PORT": "23615",
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "django_sisdb.sqlite3",
     }
 }
+
+# percobaan integrasi db postgresql di railway -nic
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": "railway",
+#         "USER": "postgres",
+#         "PASSWORD": "geiBpfyCEViGgvSBSEapSzmXKsmpywSS",
+#         "HOST": "ballast.proxy.rlwy.net",
+#         "PORT": "23615",
+#     }
+# }
 
 
 # Password validation
