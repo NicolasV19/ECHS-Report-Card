@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     'simple_history', # django-simple-history
     "slick_reporting", # django-slick-reporting
     "crispy_bootstrap4", # django-slick-reporting
+    "rest_framework",
+    "rest_framework_api_key"
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
@@ -193,6 +195,15 @@ DAISY_SETTINGS = {
 
     },
 }
+
+
+# REST_FRAMEWORK = {
+#     # Use Django's standard `django.contrib.auth` permissions,
+#     # or allow read-only access for unauthenticated users.
+#     'DEFAULT_PERMISSION_CLASSES': [
+#         "rest_framework_api_key.permissions.HasAPIKey"
+#     ]
+# }
 
 
 #LOGIN_REDIRECT_URL = '/'
