@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+{% extends "base_gradebook.html" %}
 
 {% block content %}
 
-<h1>Input Nilai Selesai!</h1>
+<h1>Grade Entry Complete!</h1>
 <button onclick="window.location.href='{% url 'grade-entry' %}'" class="btn btn-primary mt-3">
-    ← Mulai Input Nilai Baru
+    ← Back
     </button>
 
 {% endblock %}
