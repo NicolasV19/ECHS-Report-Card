@@ -17,12 +17,19 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Line
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import logout
 
 # Create your views here.
 def index(request):
-    return render(request, 'partials/admission/index.html')
+    student_count = Student.objects.count()
+    context = {
+        'student_count': student_count
+    }
+    return render(request, 'partials/admission/index.html', context)
 
-class AdmissionView(SessionWizardView):
+class AdmissionView(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/admission/admission.html"
 
     form_list = [
@@ -117,6 +124,9 @@ def get_filter_options(request):
         "options": list(options)
     })
 
+def logout_view(request):
+    logout(request)
+
 # Add this new view for student counts per grade level
 def get_student_counts(request):
     year = request.GET.get('year')
@@ -133,6 +143,7 @@ def get_student_counts(request):
         'data': data,
     })
 
+@login_required
 def regist_table(request):
     # 1. Start with all students
     student_list = Student.objects.all().order_by('nisn') # Ordering is important for pagination

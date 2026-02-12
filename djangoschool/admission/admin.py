@@ -3,7 +3,7 @@ from django.contrib import admin
 # Register your models here.
 from .models import (Registration, AcademicYear, LearningPeriod,
                      SchoolData, SchoolLevel, HeadMaster,
-                     Teacher, Student, Class, ClassMember)
+                     Teacher, Student, Class, ClassMember, Religion, GradeLevel)
 
 
 class AcademicYearAdmin(admin.ModelAdmin):
@@ -50,6 +50,15 @@ class ClassMemberAdmin(admin.ModelAdmin):
 
     def student_name(self, obj: ClassMember):
         return f"{obj.student}"
+    
+class ReligionAdmin(admin.ModelAdmin):
+    list_display = ["religion_name"]
+
+class GradeLevelAdmin(admin.ModelAdmin):
+    list_display = ["school_level", "grade_name", "short_name"]
+
+
+
 
 admin.site.register(Registration, RegistrationAdmin)
 admin.site.register(AcademicYear, AcademicYearAdmin)
@@ -61,3 +70,5 @@ admin.site.register(ClassMember, ClassMemberAdmin)
 admin.site.register(SchoolData)
 admin.site.register(SchoolLevel)
 admin.site.register(HeadMaster)
+admin.site.register(Religion, ReligionAdmin)
+admin.site.register(GradeLevel, GradeLevelAdmin)
