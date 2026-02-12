@@ -5,6 +5,8 @@ from slick_reporting.forms import BaseReportForm
 from django.forms import modelform_factory, formset_factory, modelformset_factory, BaseFormSet
 from .models import GradeEntry, AssignmentHead, AssignmentDetail, StudentAttendance, ReportcardGrade, StudentReportcard, Subject, Course, LearningPeriod, AcademicYear, AssignmentType
 from admission.models import Class, ClassMember, GradeLevel, Teacher, AbstractClass, Student, SchoolLevel
+import re
+from django.utils.safestring import mark_safe
 
 # Define grade choices
 FINAL_GRADE_CHOICES = [
@@ -14,6 +16,16 @@ FINAL_GRADE_CHOICES = [
     ('D', 'D'),
     ('E', 'E'),
 ]
+
+
+# biar jadi text, bukan field yang gabisa diapa2in
+class PlainTextWidget(forms.Widget):
+    def render(self, name, value, attrs=None, renderer=None):
+        # Render the value as a simple span or string
+        # You can add style/classes here if needed
+        return mark_safe(f'<span class="form-control-plaintext">{value or ""}</span>')
+
+
 
 # Form Step 1
 class GradeEntryForm(forms.ModelForm):
@@ -147,10 +159,6 @@ class GradeEntryForm(forms.ModelForm):
         self.fields['teacher'].widget.attrs['id'] = 'teacher-select-ge'
         self.fields['subject'].widget.attrs['id'] = 'subject-select-ge'
 
-
-
-
-
         # old code
         # self.fields['academic_year'].widget.attrs.update({
         #     'class': 'custom-select mb-4',
@@ -201,6 +209,9 @@ class GradeEntryForm(forms.ModelForm):
         # self.fields['course'].widget.attrs['id'] = 'course-select-ge'
         # self.fields['level'].widget.attrs['id'] = 'level-select-ge'
         
+
+
+
 class ReportCardComment(forms.ModelForm):
     class Meta:
         model = ReportcardGrade
@@ -303,7 +314,8 @@ class AssignmentDetailItemForm(forms.ModelForm):
 
     student_nisn = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
+        # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
+        widget=PlainTextWidget
     )
 
     class Meta:
@@ -334,69 +346,22 @@ class AssignmentDetailItemForm(forms.ModelForm):
             
         # 2. DETERMINE IS_ACTIVE STATUS (The Fix)
         # Default to True (active) unless we find otherwise
-        is_active_val = True 
-
         if self.is_bound:
-            # === THIS IS THE MISSING PART ===
-            # If the user submitted data (clicked Save/Next), we MUST check the 
-            # checkbox state from the raw data, not the database/initials.
+            # CASE A: User clicked Save/Next. Look at POST data.
+            # We construct the HTML name of the checkbox: "{prefix}-is_active"
+            checkbox_name = f"{self.prefix}-is_active"
             
-            # Get the full HTML name for this specific row (e.g., '2-0-is_active')
-            field_name = self.add_prefix('is_active')
-            
-            # In HTML, if a checkbox is unchecked, it sends NOTHING. 
-            # If it is checked, it sends the key.
-            # So, if the key is missing from data, is_active is False.
-            if self.data and field_name not in self.data:
-                is_active_val = False
+            # In HTML, an unchecked box sends NO data. A checked box sends data.
+            # So, if the key exists in self.data, it is True. If missing, it is False.
+            self.current_is_active = checkbox_name in self.data
         else:
-            # If just loading the page for the first time
-            if self.instance and self.instance.pk is not None:
-                is_active_val = self.instance.is_active
-            elif 'is_active' in self.initial:
-                is_active_val = self.initial.get('is_active')
+            # CASE B: First page load. Look at Database/Initial.
+            if self.instance and self.instance.pk:
+                self.current_is_active = self.instance.is_active
+            else:
+                self.current_is_active = self.initial.get('is_active', True)
+    
 
-        # 3. APPLY READONLY/DISABLED BASED ON STATUS
-        if is_active_val:
-            # If Active: fields are Readonly (Greyed out)
-            self.fields['na_reason'].widget.attrs.update({
-                'readonly': 'readonly',
-                'style': 'background-color: #e9ecef; cursor: not-allowed;',
-                'placeholder': 'Not applicable'
-            })
-            self.fields['na_date'].widget.attrs.update({
-                'readonly': 'readonly',
-                'style': 'background-color: #e9ecef;'
-            })
-        else:
-            # If Inactive: fields are Editable
-            self.fields['na_reason'].widget.attrs.pop('readonly', None)
-            self.fields['na_date'].widget.attrs.pop('readonly', None)
-            
-            # Clear styles so they look like normal inputs
-            self.fields['na_reason'].widget.attrs['style'] = ''
-            self.fields['na_date'].widget.attrs['style'] = ''
-
-        # 4. ADD HTMX ATTRIBUTES TO is_active FOR DYNAMIC TOGGLE
-        form_index = kwargs.get('form_index', 0)  # We'll pass this from the view
-        self.fields['is_active'].widget.attrs.update({
-            'hx-get': f'/gradebook/toggle-na-reason/?form_index={form_index}',
-            'hx-trigger': 'change',
-            'hx-target': f'#na_reason_td_{form_index}',
-            'hx-swap': 'innerHTML',
-            'hx-include': f'[name="{self.add_prefix("na_reason")}"], [name="{self.add_prefix("is_active")}"]'
-        })
-        self.fields['na_date'].widget.attrs['style'] = ''
-
-        if not student_obj:
-            if self.instance and hasattr(self.instance, 'student'):
-                student_obj = self.instance.student
-            elif self.initial.get('student'):
-                from admission.models import Student
-                try:
-                    student_obj = Student.objects.get(pk=self.initial['student'])
-                except Student.DoesNotExist:
-                    pass
 
         # 3. Calculate the Name
         if student_obj:
@@ -415,6 +380,17 @@ class AssignmentDetailItemForm(forms.ModelForm):
                 # Assign to the readonly field
                 self.fields['student_name'].initial = full_name
             self.fields['student_nisn'].initial = student_obj.nisn
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_active = cleaned_data.get('is_active')
+        na_reason = cleaned_data.get('na_reason')
+
+            # Logic: If inactive (False) AND reason is empty, raise error
+        if is_active is False and not na_reason:
+            self.add_error('na_reason', "Reason is required when item is inactive.")
+            
+        return cleaned_data
         
 
         
@@ -469,6 +445,26 @@ AssignmentDetailFormSet = formset_factory(AssignmentDetailItemForm, formset=Assi
 
 
 class StudentReportcardForm(forms.ModelForm):
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'period-select'})
+    )
+
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
+    )
+
     class Meta:
         model = StudentReportcard
         fields = ["academic_year", "period", "is_mid", "level"]
@@ -477,26 +473,78 @@ class StudentReportcardForm(forms.ModelForm):
         }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # BIAR NGGAK ERROR PAS MAU LANJUT KE STEP BERIKUTNYA
+        data = self.data
+        initial = self.initial
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        level = data.get('0-level') or initial.get('level')
+        period = data.get('0-period') or initial.get('period')
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year=acayear)
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+
+        if period:
+            self.fields['level'].queryset = GradeLevel.objects.all()
+        else:
+            self.fields['level'].queryset = GradeLevel.objects.none()
+            
         self.fields['academic_year'].widget.attrs.update({
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-period-ge/',
+            'hx-get': '/gradebook/get-period-reportcard/',
             'hx-trigger': 'change',
             'hx-target': '#period-select',
             'hx-swap': 'innerHTML',
             'hx-include': '[name="1-period"]'
             })
+        
+        # self.fields['period'].widget.attrs.update({
+        #         'class': 'custom-select mb-4',
+        #         'id': 'period-select'
+        #         })
         self.fields['period'].widget.attrs.update({
-                'class': 'custom-select mb-4',
-                'id': 'period-select'
-                })
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-level-reportcard/',
+            'hx-trigger': 'change',
+            'hx-target': '#level-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="1-level"]'
+            })
+        
+        self.fields['level'].widget.attrs['id'] = 'level-select'
 
 class CourseByTeacher(forms.ModelForm):
+    # subject = forms.ModelChoiceField(
+    #     queryset=Subject.objects.all(),
+    #     required=True
+    # )
+    
+    # course = forms.ModelChoiceField(
+    #     queryset=Course.objects.filter(subject=subject),
+    #     required=False
+    # )
+    
     class Meta:
         model = GradeEntry
         fields = ["subject", "course"]
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        data = self.data
+        initial = self.initial
+        
+        # data.get must use the wizard prefix '1-', whatever that means
+        # kalo nggak ntar nggak bisa ke langkah 3
+        course = data.get('1-course') or initial.get('course')
+        subject = data.get('1-subject') or initial.get('subject')
+        if subject:
+            self.fields['course'].queryset = Course.objects.filter(subject_id=subject)
+        else:
+            self.fields['course'].queryset = Course.objects.none()
+
+        
+
+        
         self.fields['course'].required = False
         self.fields['subject'].widget.attrs.update({
             'class': 'custom-select mb-4',
@@ -516,12 +564,14 @@ class ReportCardGradeForm(forms.ModelForm):
     # Dummy field for display purposes only
     subject_name = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
+        # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
+        widget=PlainTextWidget
     )
 
     student_name = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
+        # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
+        widget=PlainTextWidget
     )
     
 
@@ -680,13 +730,23 @@ class RequestLogForm(BaseReportForm, forms.Form):
     academic_year = forms.ModelChoiceField(
         queryset = AcademicYear.objects.all(),
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={
+            'class': 'form-control plaintext',
+            'hx-get': 'load_periods/',
+            'hx-target': '#period-container',  # Target a stable DIV, not the input
+            'hx-swap': 'outerHTML',            # Swap the INSIDE of the div
+            'hx-trigger': 'change'
+        })
     )
 
     period = forms.ModelChoiceField(
         queryset = LearningPeriod.objects.all(),
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'hx-swap': 'outerHTML',
+            'id': 'id_period'             # Must match hx-target above
+        })
     )
 
     is_mid = forms.BooleanField(
@@ -702,6 +762,8 @@ class RequestLogForm(BaseReportForm, forms.Form):
     #     # provide initial values and ay needed customization
         self.fields["start_date"].initial = datetime.date
         self.fields["end_date"].initial = datetime.date
+
+        
 
         # self.fields["start_date"].widget.is_hidden = True
 

@@ -23,12 +23,51 @@ from django.forms import modelformset_factory, formset_factory
 from django.core.paginator import Paginator
 from django import forms, template
 from django.template.loader import render_to_string
+from django.contrib.auth import logout
+from django.db.models.functions import Ceil
 
 register = template.Library()
 
-@login_required
 def gb_index(request):
-    return render(request, "partials/gradebook/index.html")
+    ge = GradeEntry.objects.all()
+    ah = AssignmentHead.objects.all()
+    ad = AssignmentDetail.objects.all()
+    attendance_qs = StudentAttendance.objects.all().order_by('-id')
+
+    ad_ahfilter = AssignmentDetail.objects.select_related('assignment_head', 'assignment_head__course', 'student')
+
+    # sort by midterms
+    midterms = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Midterm').select_related('assignment_head', 'assignment_head__course', 'student')
+
+    # sort by quizzes
+    quizzes = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Quiz').select_related('assignment_head', 'assignment_head__course', 'student')
+
+    # sort by finals
+    finals = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Finals').select_related('assignment_head', 'assignment_head__course', 'student')
+
+    pnation = Paginator(attendance_qs, 15)
+    page = request.GET.get('page')
+    pnation_attend = pnation.get_page(page)
+
+    # average score of each student
+    # score_avg = AssignmentDetail.objects.annotate(avg_score=Avg('score')).order_by('-avg_score')
+    score_avg = Student.objects.annotate(avg_score=Ceil(Avg('assignmentdetail__score'))).order_by('-avg_score')
+    return render(request, "partials/gradebook/index.html", {
+        'ge': ge,
+        'ah': ah,
+        'ad': ad,
+        'ad_ahfilter': ad_ahfilter,
+        'midterms': midterms,
+        'quizzes': quizzes,
+        'finals': finals,
+        'score_avg': score_avg,
+        'pnation_attend': pnation_attend,
+        'attendance': attendance_qs,
+        'request': request,
+    })
+
+def logout_view(request):
+    logout(request)
 
 @login_required
 def get_courses(request):
@@ -54,8 +93,11 @@ def grade_entry(request):
 def get_period(request):
     pass
 
+def logout_view(request):
+    logout(request)
+
 @login_required
-def attendance(request):
+def attendance(request): # musti di cek ini kefilter berdasarkan guru apa kgk list siswany
     # cannot unpack non-iterable ForwardManyToOneDescriptor object
     # current_teacher = get_object_or_404(Teacher, user=request.user)
     # filtered_students = Teacher.objects.filter(current_teacher)
@@ -696,10 +738,17 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             data_step0 = self.get_cleaned_data_for_step('1')
             if data_step0:
                 context['selected_course'] = data_step0.get('course')
+                context['selected_subject'] = data_step0.get('subject')
+                context['selected_level'] = data_step0.get('level')
+                context['selected_period'] = data_step0.get('period')
 
         if self.steps.current == '1':
             subject = Subject.objects.all()
             course = Course.objects.all().select_related('subject')
+            level = GradeLevel.objects.all()
+            period = LearningPeriod.objects.all().select_related('academic_year')
+            context['selected_period'] = period
+            context['selected_level'] = level
             context['selected_subject'] = subject
             context['selected_course'] = course
         
@@ -788,6 +837,10 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             
         return render(self.request, "partials/gradebook/finished_screen_teachercomm.html")
     
+
+
+
+# Grade Entry dynamic fields
 def get_levels_ge(request):
     # Check for the variable name sent by the 'academic_year' field
     # (Django form fields usually send '0-academic_year')
@@ -906,6 +959,44 @@ def get_assignment_types_ge(request):
     return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", context)
 
 
+
+
+
+
+# Report Card / Teacher Notes dynamic fields
+def get_period_reportcard(request):
+    # acayear_id = AcademicYear.objects.first().id
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get('academic_year')
+    selected_period = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
+    if acayear_id:
+        periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
+    else:
+        periods = LearningPeriod.objects.none()
+    context = {
+        'periods': periods,
+        'selected_period': selected_period
+    }
+    return render(request, "partials/gradebook/reportcard_partials/period.html", context)
+
+def get_level_reportcard(request):
+    # Check for the variable name sent by the 'academic_year' field
+    # (Django form fields usually send '0-academic_year')
+    period_id = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
+    
+    if period_id:
+        # Load levels only if a period is selected
+        levels = GradeLevel.objects.all()
+    else:
+        levels = GradeLevel.objects.none()
+        
+    context = {'levels': levels}
+    # Use your existing folder structure
+    return render(request, "partials/gradebook/reportcard_partials/level.html", context)
+
+
+
+
+
 @login_required
 def toggle_na_reason(request):
     form_index = request.GET.get('form_index', '0')
@@ -951,7 +1042,7 @@ def toggle_na_reason(request):
 
 # biar short name subject keliatan
 # kalau pakai cara ini berarti ComputationField yg biasanya dipake di ReportView
-# diambil alih manual pake yg ini
+# diambil alih scr manual pake yg ini
 class ScoreField(ComputationField):
     # nama bisa apa aja (INI PENTING, HARUS ADA)
     name = "scorecolumn"

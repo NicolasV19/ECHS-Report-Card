@@ -27,7 +27,9 @@ urlpatterns = [
     path('tc-edit/<int:pk>', views.tc_edit, name='tc-edit'),
     path('tc-del/<int:pk>', views.tc_del, name='tc-del'),
     path('attendance-list-homepage', views.attendance_list_admin, name='attendance-list-homepage'),
-    path('rcard-ledger/', views.ReportCardGradeSummary.as_view(), name='rcard-ledger'),   
+    path('rcard-ledger/', views.ReportCardGradeSummary.as_view(), name='rcard-ledger'),
+    path('get-level-reportcard/', views.get_level_reportcard, name='get_level_reportcard'),
+    path('get-period-reportcard/', views.get_period_reportcard, name='get_period_reportcard'),   
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
     ]
