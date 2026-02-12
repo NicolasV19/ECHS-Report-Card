@@ -1,9 +1,11 @@
-{% extends 'sreport_base.html' %}
+{% extends 'base_gradebook.html' %}
 {% comment %} {% extends 'slick_reporting/base.html' %} {% endcomment %}
-{% load crispy_forms_tags i18n slick_reporting_tags %}
+{% load i18n slick_reporting_tags %}
+{% load django_htmx %}
+
+{% block title %}{{ report_title }}{% endblock %}
 
 {% block content %}
-<button onclick="history.back()" class="btn btn-primary">Back</button>
     <div class="col-12">
         {% if form %}
             <form id="reportForm" class="card">
@@ -11,7 +13,7 @@
                     <h3 class="card-title">{% trans "Filters" %}</h3>
                 </div>
                 <div class="card-body">
-                    {% crispy form crispy_helper %}
+                    {{ form.as_p }}
                 </div>
                 <div class="card-footer text-end">
                     <input type="submit" value="{% trans "Filter" %}"
@@ -21,8 +23,9 @@
                     {% for export_action in report.get_export_actions %}
                         <button class="btn {{ export_action.css_class }}" data-export-btn
                                 data-export-parameter="{{ export_action.parameter }}" data-form-selector="#reportForm">
-                            {% if export_action.icon %}<i class="{{ export_action.icon }}"></i> {% endif %}
+                            {% if export_action.icon %}</i> {% endif %}
                             {{ export_action.title }} </button>
+                            
                     {% endfor %}
                 </div>
             </form>
@@ -47,9 +50,10 @@
             </div>
         </div>
     </div>
+    <button onclick="history.back()" class="btn btn-primary">Back</button>
 {% endblock %}
 
 {% block extrajs %}
-    {{ block.super }}
+    {% include "slick_reporting/js_resources.html" %}
     {% get_charts_media report.get_chart_settings %}
 {% endblock %}

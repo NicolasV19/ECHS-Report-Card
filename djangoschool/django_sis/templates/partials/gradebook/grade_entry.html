@@ -11,7 +11,8 @@
 <div class="collapse-title text-xl font-medium">Grade Entry</div>
 </div>
     {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
-    <fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1">
+    <div class="col-md-8 offset-md-2">
+    <fieldset class="module aligned   mb-4 overflow-visible">
         {% comment %} <div class="card bg-primary text-white">
             <h4 class="mb-2">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
         </div> {% endcomment %}
@@ -42,7 +43,7 @@
         </tr>
         </table> {% endcomment %}
 
-        <div class="flex-1 card-body" style="max-width: 100%; width: auto;">
+        <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: auto;">
             {% if selected_course %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
                 <span>
@@ -70,7 +71,7 @@
                     {% if wizard.form.forms %}
                         <div class="table-responsive">
                             <table class="table table-hover table-bordered align-middle">
-                                <thead class="table-light">
+                                <thead class="bg-base-200 rounded-md">
                                     <tr>
                                         <th style="width: 30%;">NISN</th>
                                         <th style="width: 30%;">Name</th>
@@ -100,37 +101,35 @@
                                             {% endif %}
                                         </td>
 
-                                        <td id="na_reason_td_{{ forloop.counter0 }}">
-        {# Determine if the row is currently active #}
-        {# We check if the value is True. We assume default is True if None. #}
-        {% with is_active=form.is_active.value|default_if_none:True %}
-        
-        <input 
-            id="na_reason_input_{{ forloop.counter0 }}"
-            type="text" 
-            class="form-control"
-            name="{{ form.na_reason.html_name }}" 
-            value="{{ form.na_reason.value|default_if_none:'' }}"
+{# N/A REASON - MANUAL RENDERING #}
+        <td>
+            <input 
+                type="text" 
+                name="{{ form.na_reason.html_name }}" 
+                value="{{ form.na_reason.value|default_if_none:'' }}"
+                class="form-control"
+                
+                {# === THE LOGIC === #}
+                {# We use the python variable we calculated in __init__ #}
+                {% if form.current_is_active %}
+                    readonly 
+                    style="background-color: #e9ecef; cursor: not-allowed;"
+                    placeholder="Active (Uncheck & Save to edit)"
+                {% else %}
+                    style="background-color: #ffffff;"
+                    placeholder="Enter reason..."
+                {% endif %}
+            >
             
-            {# LOGIC: If is_active is True, make it Readonly #}
-            {% if is_active %}
-                readonly
-                style="background-color: #e9ecef; cursor: not-allowed;"
-                placeholder="Item is active"
-            {% else %}
-                placeholder="Enter reason..."
+            {% if form.na_reason.errors %}
+                <div class="text-danger small">{{ form.na_reason.errors }}</div>
             {% endif %}
-        >
-        {% endwith %}
+        </td>
 
-        {% if form.na_reason.errors %}
-            <div class="text-danger small">{{ form.na_reason.errors }}</div>
-        {% endif %}
-    </td>
-
-    <td class="text-center">
-        {{ form.is_active }}
-    </td>
+        {# IS ACTIVE CHECKBOX #}
+        <td class="text-center">
+            {{ form.is_active }}
+        </td>
 
                                         {% comment %} <td>
                                             {{ form.na_reason }}
@@ -148,7 +147,7 @@
                             </table>
                         </div>
                     {% else %}
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning d-flex justify-content-between align-items-center" style="margin-bottom: 200px">
                             No students found within this course.
                         </div>
                     {% endif %}
@@ -158,121 +157,120 @@
                     <div class="row">
                     {{ wizard.form.management_form }}
                         <div class="col-md-8 offset-md-2">
-                            <table class="table table-borderless">
+                            {% comment %} <table class="table table-borderless"> {% endcomment %}
+                            <fieldset class="module aligned   mb-4 overflow-visible">
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3   field-name ">
+                        <div class="mb-1 basis-full md:flex-1">
                                 {% if wizard.steps.current == '0' %}
-                                <tr>
-                                <td>
+                                {% comment %} <tr>
+                                <td> {% endcomment %}
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.academic_year.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.academic_year }}
                                     <div class="error">
                                         {{ wizard.form.academic_year.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+                                {% comment %} </td>
+                                </tr> {% endcomment %}
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.level.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.level }}
                                     <div class="error">
                                         {{ wizard.form.level.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.period.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.period }}
                                     <div class="error">
                                         {{ wizard.form.period.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.teacher.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.teacher }}
                                     <div class="error">
                                         {{ wizard.form.teacher.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.subject.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.subject }}
                                     <div class="error">
                                         {{ wizard.form.subject.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.course.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.course }}
                                     <div class="error">
                                         {{ wizard.form.course.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.assignment_type.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.assignment_type }}
                                     <div class="error">
                                         {{ wizard.form.assignment_type.errors }}
                                     </div>
-                                </td>
-                                </tr>
+                                </div>
+                                </div>
+
                                 {% elif wizard.steps.current == '1' %}
-                                <tr>
-                                <td>
+
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.date.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.date }}
                                     <div class="error">
                                         {{ wizard.form.date.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.topic.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.topic }}
                                     <div class="error">
                                         {{ wizard.form.topic.errors }}
                                     </div>
-                                </td>
-                                </tr>
-                                <tr>
-                                <td>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.max_score.label }}
-                                </td>
-                                <td>
                                 {{ wizard.form.max_score }}
                                     <div class="error">
                                         {{ wizard.form.max_score.errors }}
                                     </div>
-                                </td>
-                                </tr>
+                                </div>
+                                </div>
+
                                 {% endif %}
-                            </table>
+                            {% comment %} </table> {% endcomment %}
                         </div>
                     </div>
                 {% endif %}
@@ -283,9 +281,8 @@
                 {% comment %} <div class="d-flex justify-content-between"> {% endcomment %}
                 
                     {% if wizard.steps.prev %}
-                    <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0">
-                    <div class="p-3 bg-base-100 justify-between flex flex-row-reverse gap-15 sticky top-3 max-md:hidden">
-                    <div class="text-start flex  gap-2">
+                    {% comment %} <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0"> {% endcomment %}
+                    {% comment %} <div class="text-start flex  gap-2"> {% endcomment %}
                         <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
                             &laquo; Back
                         </button>
@@ -308,15 +305,17 @@
                         </button>
                         {% endif %}
                     
-                </div>
-                </div>
-                </div>
+                {% comment %} </div> {% endcomment %}
+                {% comment %} </div> {% endcomment %}
                 </div>
                 
             </form>
         </div>
+        </div>
+        </div>
     {% comment %} </div> {% endcomment %}
     </fieldset>
+</div>
 </div>
 
 <style>

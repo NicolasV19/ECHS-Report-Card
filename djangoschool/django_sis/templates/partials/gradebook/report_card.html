@@ -12,7 +12,7 @@
             <h4 class="mb-0">Teacher's Notes Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
         </div> {% endcomment %}
 
-        <div class="card-body" style="max-width: 100%; width: 100%; height: auto; padding: 20px;">
+        <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: 100%; height: auto; padding: 20px;">
             {% comment %} <div class="card-body bg-secondary bg-opacity-3" style="width: 600px;"> {% endcomment %}
             {% if selected_student %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
@@ -38,8 +38,8 @@
 
                     {% if wizard.form.forms %}
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered align-middle">
-                                <thead class="table-light">
+                            <table class="table table-responsive table-auto w-full">
+                                <thead class="bg-base-200 rounded-md">
                                     <tr>
                                         <th style="width: 20%;">Student</th>
                                         {% comment %} <th style="width: 20%;">Subject</th> {% endcomment %}
@@ -95,34 +95,95 @@
 
                 {% elif wizard.steps.current == '1' %}
                 {{ wizard.form.management_form }}
-                <div>
-                <table>
-                <tr>
-                <td>
+                <div class="col-md-8 offset-md-2">
+                <fieldset class="module aligned   mb-4 overflow-visible">
+                <div class="form-row flex flex-wrap justify-start gap-4 mb-3   field-name ">
+                <div class="mb-1 basis-full md:flex-1">
+                {% comment %} <div> {% endcomment %}
+                {% comment %} <table> {% endcomment %}
+                {% comment %} <tr> {% endcomment %}
+                {% comment %} <td> {% endcomment %}
                 {{ wizard.form.subject.label }}
-                </td>
-                <td>
+                {% comment %} </td> {% endcomment %}
                 {{ wizard.form.subject }}
-                </td>
-                </tr>
-                <tr>
-                <td>
+
                 {{ wizard.form.course.label }}
-                </td>
-                <td>
                 {{ wizard.form.course }}
-                </td>
-                </tr>
-                </table>
+
+                {% comment %} </table> {% endcomment %}
+                </div>
+                </div>
+                </fieldset>
                 </div>
             
                 {# === STEP 0: Student Selection === #}
-                {% else %}
+                {% comment %} {% else %}
                     <div class="row">
                         <div class="col-md-8 offset-md-2">
                             <table class="table table-borderless">
                                 {{ wizard.form.as_table }}
                             </table>
+                        </div>
+                    </div>
+                {% endif %} {% endcomment %}
+                {% else %}
+                    <div class="row">
+                    {{ wizard.form.management_form }}
+                        <div class="col-md-8 offset-md-2">
+                        <fieldset class="module aligned   mb-4 overflow-visible">
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3   field-name ">
+                        <div class="mb-1 basis-full md:flex-1">
+                            {% comment %} <table class="table table-borderless"> {% endcomment %}
+                                {% if wizard.steps.current == '0' %}
+                                {% comment %} <tr> {% endcomment %}
+                                {% comment %} <td> {% endcomment %}
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.academic_year.label }}
+                                {% comment %} </td> {% endcomment %}
+                                {% comment %} <td> {% endcomment %}
+                                {{ wizard.form.academic_year }}
+                                    <div class="error">
+                                        {{ wizard.form.academic_year.errors }}
+                                    </div>
+                                </div>
+                                </div>
+                                {% comment %} </td> {% endcomment %}
+                                {% comment %} </tr> {% endcomment %}
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.period.label }}
+                                {{ wizard.form.period }}
+                                    <div class="error">
+                                        {{ wizard.form.period.errors }}
+                                    </div>
+                                </div>
+                                </div>
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.level.label }}
+                                {{ wizard.form.level }}
+                                    <div class="error">
+                                        {{ wizard.form.level.errors }}
+                                    </div>
+                                </div>
+                                </div>
+
+                                <div class="mt-2 flex align-center gap-4">
+                                {{ wizard.form.is_mid.label }}
+                                {{ wizard.form.is_mid }}
+                                    <div class="error">
+                                        {{ wizard.form.is_mid.errors }}
+                                    </div>
+                                </div>
+
+                                {% endif %}
+                            {% comment %} </table> {% endcomment %}
+                            </div>
+                            </div>
+                            </fieldset>
                         </div>
                     </div>
                 {% endif %}
@@ -131,16 +192,16 @@
 
                 <div class="d-flex justify-content-between">
                     {% if wizard.steps.prev %}
-                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-secondary">
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-secondary px-4 primary-content  btn rounded-md legitRipple">
                             &laquo; Back
                         </button>
                     {% else %}
                         <div></div> 
                     {% endif %}
                     
-                    <button type="submit" class="btn btn-success px-4">
+                    <button type="submit" class="btn-sm btn-success px-4 primary-content  btn rounded-md legitRipple">
                         {% if wizard.steps.current == '2' %}
-                            <i class="bi bi-save"></i> Save Report Card
+                            Save Report Card
                         {% else %}
                             Next &raquo;
                         {% endif %}
