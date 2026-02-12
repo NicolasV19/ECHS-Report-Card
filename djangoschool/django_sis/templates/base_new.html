@@ -96,7 +96,7 @@
                         <ul>
                             <li class="model-weighting">
                                 <a class=""
-                                   href="{% url 'grade-entry' %}">
+                                   href="{% url 'grade-entry-table' %}">
                                     Grade Entry
                                 </a>
                             </li>
@@ -258,8 +258,7 @@
                                href="/admin/password_change/">Change password</a>
                         </li>
                         <li>
-                            <a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()"
-                               href="#">Log out</a>
+                            <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Log out</a></li>
                         </li>
                     </ul>
                 </div>
@@ -278,10 +277,10 @@
                 {% endblock %}
             </div>
 
-        <form id="logout-form" class="hidden" method="post" action="/admin/logout/">
-            <input type="hidden" name="csrfmiddlewaretoken" value="{% csrf_token %}" />
-            <button type="submit"></button>
-        </form>
+    <form id="logout-form" class="hidden" method="post" action="/admin/logout/">
+        {% csrf_token %}
+        <button type="submit"></button>
+    </form>
 
     <script src="/static_files/admin/js/vendor/jquery/jquery.min.js"></script>
     <script src="/static_files/admin/js/jquery.init.js"></script>
