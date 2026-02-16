@@ -730,22 +730,16 @@ class RequestLogForm(BaseReportForm, forms.Form):
     academic_year = forms.ModelChoiceField(
         queryset = AcademicYear.objects.all(),
         required=False,
-        widget=forms.Select(attrs={
-            'class': 'form-control plaintext',
-            'hx-get': 'load_periods/',
-            'hx-target': '#period-container',  # Target a stable DIV, not the input
-            'hx-swap': 'outerHTML',            # Swap the INSIDE of the div
-            'hx-trigger': 'change'
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
         })
     )
 
     period = forms.ModelChoiceField(
         queryset = LearningPeriod.objects.all(),
         required=False,
-        widget=forms.Select(attrs={
-            'class': 'form-control',
-            'hx-swap': 'outerHTML',
-            'id': 'id_period'             # Must match hx-target above
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'           # Must match hx-target above
         })
     )
 

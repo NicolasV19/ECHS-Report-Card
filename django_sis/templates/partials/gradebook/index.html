@@ -125,7 +125,7 @@
             </thead>
             <tbody>
                 <tr>
-                {% for att in attendance|slice:"5" %}
+                {% for att in pnation_attend %}
                     <td>{{ att.attendance_date }}</td>
                     <td>{{ att.student }}</td>
                     <td>{{ att.attendance_type }}</td>
@@ -145,7 +145,7 @@
         </div>
         </div>
         </div>
-                {% comment %} <div class="card-actions justify-center" style="margin-center: 10px;">
+        <div class="card-actions justify-center" style="margin-center: 10px;">
         <table>
         <div class="join">
         <tr>
@@ -170,6 +170,6 @@
         
        </div>
        </table>
-       </div> {% endcomment %}
+       </div>
     </div>
 {% endblock %}
