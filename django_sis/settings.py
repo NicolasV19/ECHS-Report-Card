@@ -99,17 +99,33 @@ TEMPLATES = [
 WSGI_APPLICATION = "django_sis.wsgi.application"
 
 
+
+# SQLite3
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "django_sisdb.sqlite3",
+#     }
+# }
+
+
+# MySQL, hosted locally with XAMPP
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "django_sisdb.sqlite3",
-    }
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'djangosis_test', # database name eg-django
+        'USER':'root', # username as root
+        'PASSWORD':'', # password keep empty
+        'HOST':'localhost', # host is localhost
+        'PORT':'3306', # you can find port in xampp control panel(mysql)
+}
 }
 
 # percobaan integrasi db postgresql di railway -nic
+# PostgreSQL, thru Railway
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.postgresql",
