@@ -56,7 +56,7 @@ class RubricIndicatorAdmin(admin.TabularInline):
 
 class RubricAdmin(admin.ModelAdmin):
     list_display = ("type", "description", "index")
-    list_filter = ["academic_year", "type" ]
+    list_filter = ["type" ]
     inlines = [ RubricIndicatorAdmin ]
 
     

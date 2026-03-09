@@ -79,7 +79,7 @@ class GradeEntry(models.Model):
 class AssignmentHead(models.Model):
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    date = models.DateField(null=True, blank=True)
+    date = models.DateField(null=True)
     topic = models.TextField(null=True, blank=True)
     max_score = models.IntegerField(default=100)
 
@@ -93,7 +93,7 @@ class AssignmentDetail(models.Model):
 
 class Rubric(models.Model):
     RUBRIC_CHOICES = [("Spiritual", "Spiritual Behaviour"), ("Social", "Social Behaviour")]
-    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+#    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
     type = models.CharField(max_length=10, choices=RUBRIC_CHOICES)
     description = models.TextField(null=True, blank=True)
     index = models.IntegerField(default=0)
@@ -147,8 +147,20 @@ class ReportcardNotes(models.Model):
     social_notes = models.TextField(null=True, blank=True)
     homeroom_notes = models.TextField(null=True, blank=True)
 
-class StudentRubrics(models.Model):
-    SCORE_CHOICES = [(1,"1"), (2,"2"), (3,"3"), (4,"4")]
-    reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
-    indicator = models.ForeignKey(RubricIndicator, on_delete=models.CASCADE)
-    score = models.IntegerField(default=0, choices=SCORE_CHOICES)
+# class StudentRubrics(models.Model):
+#     SCORE_CHOICES = [(1,"1"), (2,"2"), (3,"3"), (4,"4")]
+#     reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
+#     indicator = models.ForeignKey(RubricIndicator, on_delete=models.CASCADE)
+#     score = models.IntegerField(default=0, choices=SCORE_CHOICES)
+
+class ReportcardBehaviour(models.Model):
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    period = models.ForeignKey(LearningPeriod, on_delete=models.CASCADE)
+    is_mid = models.BooleanField(default=False)
+    level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE, related_name="students_level_reportcard_behaviour")
+
+class StudentBehaviourReport(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    behaviour = models.ForeignKey(ReportcardBehaviour, on_delete=models.CASCADE)
+    rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
+    score = models.IntegerField(default=0)
