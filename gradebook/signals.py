@@ -73,14 +73,22 @@ def new_grade_entry(sender, instance, created, **kwargs):
 
 def set_final_grade(sender, instance, **kwargs):
     if not instance.final_grade:
-        if (instance.final_score > 89) and (instance.final_score < 101):
+        if (instance.final_score > 92) and (instance.final_score < 101):
             instance.final_grade = "A"
-        elif (instance.final_score > 85) and (instance.final_score < 90):
+        elif (instance.final_score > 85) and (instance.final_score < 93):
             instance.final_grade = "B"
-        elif (instance.final_score > 79) and (instance.final_score < 86):
+        elif (instance.final_score > 81) and (instance.final_score < 86):
             instance.final_grade = "C"
-        else:
+        elif (instance.final_score > 69) and (instance.final_score < 82):
             instance.final_grade = "D"
+        else:
+            instance.final_grade = "E"
+
+def tambah_record_rubriksiswa(sender, instance, created, **kwargs):
+    if created:
+        id_nilai_rapor = instance.id
+        
+        pass
 
 #untuk tabel subject saat hendak dan setelah disimpan
 pre_save.connect(make_shortname, Subject)
@@ -91,3 +99,6 @@ post_save.connect(new_grade_entry, GradeEntry)
 
 #konversi nilai raport ke huruf
 pre_save.connect(set_final_grade, ReportcardGrade)
+
+#buat record rubrik untuk tiap 1 nilai raport
+post_save.connect(tambah_record_rubriksiswa, ReportcardGrade)
