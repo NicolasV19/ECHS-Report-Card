@@ -806,26 +806,8 @@ class RequestLogForm(BaseReportForm, forms.Form):
 # RUBRIC ENTRY (Student Behavior Form)
 # ============================================================================
 
-class RubricEntryForm(forms.Form):
+class RubricEntryForm(forms.ModelForm):
     """Step 0: Select academic year, period, teacher, and class"""
-    
-    academic_year = forms.ModelChoiceField(
-        queryset=AcademicYear.objects.all(),
-        required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
-    )
-    
-    period = forms.ModelChoiceField(
-        queryset=LearningPeriod.objects.none(),
-        required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
-    )
-    
-    level = forms.ModelChoiceField(
-        queryset=GradeLevel.objects.all(),
-        required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
-    )
     
     teacher = forms.ModelChoiceField(
         queryset=Teacher.objects.all(),
@@ -839,6 +821,10 @@ class RubricEntryForm(forms.Form):
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
         
+    class Meta:
+        model = ReportcardBehaviour
+        fields = ['academic_year', 'period', 'level']
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         

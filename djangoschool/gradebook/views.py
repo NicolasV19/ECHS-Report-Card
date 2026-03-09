@@ -1606,43 +1606,29 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 
     def done(self, form_list, **kwargs):
         # Ambil data dari form yang sudah divalidasi
-        form_data_0 = form_list[0].cleaned_data # GradeEntry
-        form_data_1 = form_list[1].cleaned_data # AssignmentHead
-        formset_data_2 = form_list[2] # AssignmentDetailFormSet (ini formset object)
+        form_data_0 = form_list[0].cleaned_data
+        formset_data_1 = form_list[1]
 
-        # 1. Simpan GradeEntry (jika masih diperlukan sebagai log)
-        # grade_entry_instance = form_list[0].save()
-
-        # 2. Buat dan Simpan AssignmentHead
-        # Kita gabungkan data dari Step 0 dan Step 1
-        assignment_head = AssignmentHead(
-            assignment=form_data_0['assignment_type'], # Dari Step 0
-            course=form_data_0['course'],              # Dari Step 0
-            date=form_data_1['date'],                  # Dari Step 1
-            topic=form_data_1['topic'],                # Dari Step 1
-            max_score=form_data_1['max_score']         # Dari Step 1
+        # Create ReportcardBehaviour
+        behaviour = ReportcardBehaviour.objects.create(
+            academic_year=form_data_0['academic_year'],
+            period=form_data_0['period'],
+            level=form_data_0['level'],
+            is_mid=False
         )
-        assignment_head.save()
 
-        # 3. Simpan AssignmentDetail (Looping FormSet)
-        details_to_create = []
-        max_score = assignment_head.max_score
-        for form in formset_data_2:
-            if form.is_valid() and form.cleaned_data: # Pastikan form valid dan tidak kosong
-                note_content = form.cleaned_data.get('teacher_notes')
-                detail = form.save(commit=False)
-                detail.assignment_head = assignment_head # Link ke Head yang baru dibuat
-                detail.teacher_notes = note_content
-                if detail.score > max_score:
-                    return HttpResponse("Error: Score exceeds maximum allowed.")
-                else:
-                # Student sudah ada di instance dari form clean (karena ModelForm)
-                    details_to_create.append(detail)
-        
-        # Bulk create untuk performa lebih cepat
-        AssignmentDetail.objects.bulk_create(details_to_create)
+        # Create StudentBehaviourReport for each student and rubric
+        for form in formset_data_1:
+            if form.is_valid() and form.cleaned_data:
+                student = form.cleaned_data['student']
+                for rubric in Rubric.objects.all():
+                    StudentBehaviourReport.objects.create(
+                        student=student,
+                        behaviour=behaviour,
+                        rubric=rubric,
+                        score=0
+                    )
 
-        
         return render(self.request, "partials/gradebook/finished_screen.html")
 
 
@@ -1659,59 +1645,76 @@ def get_kelas_rubric(request):
 @login_required
 def student_behavior_grading(request, pk):
     """View for grading individual student behavior using rubrics and indicators"""
-    
     try:
         student = Student.objects.select_related('registration_data').get(pk=pk)
     except Student.DoesNotExist:
         return HttpResponse("Student not found", status=404)
-    
-    # Get data from GET parameters (passed from wizard)
-    academic_year_id = request.GET.get('academic_year')
-    period_id = request.GET.get('period')
-    level_id = request.GET.get('level')
-    
+
+    # Get data from the first step of the Rubric Entry form (from session)
+    wizard_key = 'wizard_RubricEntryWizard'
+    wizard_data = request.session.get(wizard_key, {})
+    step_data = wizard_data.get('step_data', {})
+    step0_data = step_data.get('0', {})
+
+    # Helper to extract PK from ModelChoiceField or fallback to GET
+    def get_pk_from_step0(key, fallback=None):
+        val = step0_data.get(key)
+        if hasattr(val, 'pk'):
+            return val.pk
+        elif isinstance(val, (int, str)) and val:
+            return val
+        return fallback
+
+    academic_year_id = get_pk_from_step0('academic_year', request.GET.get('academic_year'))
+    period_id = get_pk_from_step0('period', request.GET.get('period'))
+    level_id = get_pk_from_step0('level', request.GET.get('level'))
+
+    academic_year = None
+    period = None
+    level = None
     try:
-        academic_year = AcademicYear.objects.get(pk=academic_year_id) if academic_year_id else None
-        period = LearningPeriod.objects.get(pk=period_id) if period_id else None
-        level = GradeLevel.objects.get(pk=level_id) if level_id else None
+        if academic_year_id:
+            academic_year = AcademicYear.objects.get(pk=academic_year_id)
+        if period_id:
+            period = LearningPeriod.objects.get(pk=period_id)
+        if level_id:
+            level = GradeLevel.objects.get(pk=level_id)
     except (AcademicYear.DoesNotExist, LearningPeriod.DoesNotExist, GradeLevel.DoesNotExist):
         academic_year = period = level = None
-    
+
     # Get all rubrics for this academic year (both Spiritual and Social)
     rubrics = Rubric.objects.all()
-    
+
     # Process form submission
     if request.method == 'POST':
         # Get or create ReportcardBehaviour
+        if not (academic_year and period and level):
+            return HttpResponse("Missing academic year, period, or level.", status=400)
         behaviour, _ = ReportcardBehaviour.objects.get_or_create(
             academic_year=academic_year,
             period=period,
             level=level,
             is_mid=False
         )
-        
+
         # Save each indicator score
         for rubric in rubrics:
             for indicator in rubric.rubricindicator_set.all():
                 score_key = f'indicator_{indicator.id}'
                 score = request.POST.get(score_key)
-                
                 if score:
-                    # Save or update StudentBehaviourReport
                     StudentBehaviourReport.objects.update_or_create(
                         student=student,
                         behaviour=behaviour,
                         rubric=indicator.rubric,
                         defaults={'score': int(score)}
                     )
-        
-        # Redirect back to rubric entry or show success message
+
         return render(request, 'partials/gradebook/rubric_entry_success.html', {
             'student': student,
             'message': f"Behavior grades saved for {student}!"
         })
-    
-    # Prepare form context
+
     context = {
         'student': student,
         'academic_year': academic_year,
@@ -1720,7 +1723,6 @@ def student_behavior_grading(request, pk):
         'rubrics': rubrics,
         'score_choices': [(1, '1'), (2, '2'), (3, '3'), (4, '4')],
     }
-    
     return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
 
 # pls github i need this
