@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import GradeEntryForm, AssignmentHeadForm, AssignmentDetailItemForm, AssignmentDetailFormSet, AttendanceForm, TeacherForm, ReportCardComment, StudentReportcardForm, ReportCardGradeForm, ReportCardGradeFormset, CourseByTeacher, ReportCardFilterForm, RequestLogForm
+from .forms import *
 from .models import *
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min
@@ -927,6 +927,21 @@ def get_subjects_ge(request):
     return render(request, "partials/gradebook/gradeentry_partials/subject.html", context)
 
 
+def get_kelas_ge(request):
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+    if teacher_id:
+        # Filter classes where the teacher is the homeroom teacher
+        classes = Class.objects.filter(teacher__id=teacher_id, is_home_class=True).distinct()
+    else:
+        classes = Class.objects.none()
+    context = {
+        'classes': classes,
+        'selected_kelas': selected_kelas
+    }
+    return render(request, "partials/gradebook/gradeentry_partials/kelas.html", context)
+
+
 def get_courses_ge(request):
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
     selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
@@ -1503,3 +1518,209 @@ def toggle_na_reason(request):
     return HttpResponse(input_html.strip())
 
 
+
+
+# Create FormSet for Step 1 (Student List)
+StudentListFormSet = formset_factory(StudentListForm, formset=StudentListFormSetBase, extra=0)
+
+
+# ENTRY NILAI SIKAP
+class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
+    # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
+    template_name = "partials/gradebook/rubric_entry.html"
+    
+    form_list = [
+        ("0", RubricEntryForm),
+        ("1", StudentListFormSet)
+    ]
+
+    # def get_template_names(self):
+    #     return [self.templates[self.steps.current]]
+
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+        
+        # if step == '0':
+        #     initial['academic_year'] = None
+        #     initial['period'] = None
+        #     initial['teacher'] = None
+        #     initial['subject'] = None
+        #     initial['course'] = None
+        #     initial['assignment_type'] = None
+
+
+        # Logika khusus untuk Step 2 (FormSet Siswa)
+        if step == '1':
+            # Ambil data dari Step 0 (RubricEntryForm)
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data and 'kelas' in step0_data:
+                kelas = step0_data['kelas']
+                
+                # Ambil semua siswa yang aktif di class tersebut
+                students = ClassMember.objects.filter(
+                    kelas=kelas, 
+                    is_active=True
+                ).select_related('student')
+                
+                # Siapkan initial data (list of dicts) untuk FormSet
+                initial_list = []
+                for member in students:
+                    initial_list.append({
+                        'student': member.student.id, # Untuk Hidden Field
+                        'is_active': member.is_active,
+                    })
+                return initial_list
+        
+        return initial
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '1':
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data and 'kelas' in step0_data:
+                kwargs['kelas'] = step0_data['kelas']
+            # Pass form_kwargs_list for each form in the formset
+            initial = self.get_form_initial(step)
+            kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
+        return kwargs
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        
+        if self.steps.current == '1':
+            data_step0 = self.get_cleaned_data_for_step('0')
+            if data_step0:
+                context['selected_kelas'] = data_step0.get('kelas')
+        
+        if self.steps.current == '0':
+            acayear = AcademicYear.objects.all()
+            period = LearningPeriod.objects.all().select_related('academic_year')
+            kelas = Class.objects.all()
+            level = GradeLevel.objects.all()
+            context['selected_acayear'] = acayear
+            context['selected_period'] = period
+            context['selected_kelas'] = kelas
+            context['selected_level'] = level
+                
+        return context
+
+    def done(self, form_list, **kwargs):
+        # Ambil data dari form yang sudah divalidasi
+        form_data_0 = form_list[0].cleaned_data # GradeEntry
+        form_data_1 = form_list[1].cleaned_data # AssignmentHead
+        formset_data_2 = form_list[2] # AssignmentDetailFormSet (ini formset object)
+
+        # 1. Simpan GradeEntry (jika masih diperlukan sebagai log)
+        # grade_entry_instance = form_list[0].save()
+
+        # 2. Buat dan Simpan AssignmentHead
+        # Kita gabungkan data dari Step 0 dan Step 1
+        assignment_head = AssignmentHead(
+            assignment=form_data_0['assignment_type'], # Dari Step 0
+            course=form_data_0['course'],              # Dari Step 0
+            date=form_data_1['date'],                  # Dari Step 1
+            topic=form_data_1['topic'],                # Dari Step 1
+            max_score=form_data_1['max_score']         # Dari Step 1
+        )
+        assignment_head.save()
+
+        # 3. Simpan AssignmentDetail (Looping FormSet)
+        details_to_create = []
+        max_score = assignment_head.max_score
+        for form in formset_data_2:
+            if form.is_valid() and form.cleaned_data: # Pastikan form valid dan tidak kosong
+                note_content = form.cleaned_data.get('teacher_notes')
+                detail = form.save(commit=False)
+                detail.assignment_head = assignment_head # Link ke Head yang baru dibuat
+                detail.teacher_notes = note_content
+                if detail.score > max_score:
+                    return HttpResponse("Error: Score exceeds maximum allowed.")
+                else:
+                # Student sudah ada di instance dari form clean (karena ModelForm)
+                    details_to_create.append(detail)
+        
+        # Bulk create untuk performa lebih cepat
+        AssignmentDetail.objects.bulk_create(details_to_create)
+
+        
+        return render(self.request, "partials/gradebook/finished_screen.html")
+
+
+def get_kelas_rubric(request):
+    class_id = request.GET.get('class_id')
+    if class_id:
+        kelas = Class.objects.filter(is_home_class=True, id=class_id)
+    else:
+        kelas = Class.objects.none()
+    
+    return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", {'kelas': kelas})
+
+
+@login_required
+def student_behavior_grading(request, pk):
+    """View for grading individual student behavior using rubrics and indicators"""
+    
+    try:
+        student = Student.objects.select_related('registration_data').get(pk=pk)
+    except Student.DoesNotExist:
+        return HttpResponse("Student not found", status=404)
+    
+    # Get data from GET parameters (passed from wizard)
+    academic_year_id = request.GET.get('academic_year')
+    period_id = request.GET.get('period')
+    level_id = request.GET.get('level')
+    
+    try:
+        academic_year = AcademicYear.objects.get(pk=academic_year_id) if academic_year_id else None
+        period = LearningPeriod.objects.get(pk=period_id) if period_id else None
+        level = GradeLevel.objects.get(pk=level_id) if level_id else None
+    except (AcademicYear.DoesNotExist, LearningPeriod.DoesNotExist, GradeLevel.DoesNotExist):
+        academic_year = period = level = None
+    
+    # Get all rubrics for this academic year (both Spiritual and Social)
+    rubrics = Rubric.objects.all()
+    
+    # Process form submission
+    if request.method == 'POST':
+        # Get or create ReportcardBehaviour
+        behaviour, _ = ReportcardBehaviour.objects.get_or_create(
+            academic_year=academic_year,
+            period=period,
+            level=level,
+            is_mid=False
+        )
+        
+        # Save each indicator score
+        for rubric in rubrics:
+            for indicator in rubric.rubricindicator_set.all():
+                score_key = f'indicator_{indicator.id}'
+                score = request.POST.get(score_key)
+                
+                if score:
+                    # Save or update StudentBehaviourReport
+                    StudentBehaviourReport.objects.update_or_create(
+                        student=student,
+                        behaviour=behaviour,
+                        rubric=indicator.rubric,
+                        defaults={'score': int(score)}
+                    )
+        
+        # Redirect back to rubric entry or show success message
+        return render(request, 'partials/gradebook/rubric_entry_success.html', {
+            'student': student,
+            'message': f"Behavior grades saved for {student}!"
+        })
+    
+    # Prepare form context
+    context = {
+        'student': student,
+        'academic_year': academic_year,
+        'period': period,
+        'level': level,
+        'rubrics': rubrics,
+        'score_choices': [(1, '1'), (2, '2'), (3, '3'), (4, '4')],
+    }
+    
+    return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
+
+# pls github i need this
